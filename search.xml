@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search> 
+  
+  
+    
+    <entry>
+      <title>PreparedStatement</title>
+      <link href="/2023/09/03/jmeter/PreparedStatement/"/>
+      <url>/2023/09/03/jmeter/PreparedStatement/</url>
+      
+        <content type="html"><![CDATA[<p>JDBC Request</p><p>有 2 个 PreparedStatement 相关的选项</p><p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202309031350398.png" alt="image-20230903135037315"></p><p>单纯选择 Prepared Statement（没开启 Pool Prepared Statements），其实性能比 Statement 低（2% 左右，粗略测试）</p><p>因为，每次请求都会重新创建 PreparedStatement 对象预编译，请求结束后 close()</p><p>AbstractJDBCTestElement.java</p><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">&#125; <span class="keyword">else</span> <span class="keyword">if</span> (PREPARED_SELECT.equals(currentQueryType)) &#123;</span><br><span class="line">    <span class="keyword">try</span> (<span class="type">PreparedStatement</span> <span class="variable">pstmt</span> <span class="operator">=</span> getPreparedStatement(conn)) &#123;</span><br><span class="line">        setArguments(pstmt);</span><br><span class="line">        <span class="type">ResultSet</span> <span class="variable">rs</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            rs = pstmt.executeQuery();</span><br><span class="line">            sample.latencyEnd();</span><br><span class="line">            <span class="keyword">return</span> getStringFromResultSet(rs).getBytes(ENCODING);</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            close(rs);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125; <span class="keyword">else</span> <span class="keyword">if</span> (PREPARED_UPDATE.equals(currentQueryType)) &#123;</span><br><span class="line">    <span class="keyword">try</span> (<span class="type">PreparedStatement</span> <span class="variable">pstmt</span> <span class="operator">=</span> getPreparedStatement(conn)) &#123;</span><br><span class="line">        setArguments(pstmt);</span><br><span class="line">        pstmt.executeUpdate();</span><br><span class="line">        sample.latencyEnd();</span><br><span class="line">        <span class="type">String</span> <span class="variable">sb</span> <span class="operator">=</span> resultSetsToString(pstmt,<span class="literal">false</span>,<span class="literal">null</span>);</span><br><span class="line">        <span class="keyword">return</span> sb.getBytes(ENCODING);</span><br><span class="line">    &#125;</span><br><span class="line">&#125; <span class="keyword">else</span> <span class="keyword">if</span> (ROLLBACK.equals(currentQueryType))&#123;</span><br><span class="line">    </span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> PreparedStatement <span class="title function_">getPreparedStatement</span><span class="params">(Connection conn)</span> <span class="keyword">throws</span> SQLException &#123;</span><br><span class="line">    <span class="keyword">return</span> getPreparedStatement(conn,<span class="literal">false</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> PreparedStatement <span class="title function_">getPreparedStatement</span><span class="params">(Connection conn, <span class="type">boolean</span> callable)</span> <span class="keyword">throws</span> SQLException &#123;</span><br><span class="line">    PreparedStatement pstmt;</span><br><span class="line">    <span class="keyword">if</span> (callable) &#123;</span><br><span class="line">        pstmt = conn.prepareCall(getQuery()); </span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        pstmt = conn.prepareStatement(getQuery()); <span class="comment">// conn 是 DelegatingConnection，先不用管</span></span><br><span class="line">    &#125;</span><br><span class="line">    setQueryTimeout(pstmt, getIntegerQueryTimeout());</span><br><span class="line">    <span class="keyword">return</span> pstmt;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>]]></content>
+      
+      
+      <categories>
+          
+          <category> jmeter </category>
+          
+      </categories>
+      
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>blog</title>
+      <link href="/2023/08/27/misc/blog/"/>
+      <url>/2023/08/27/misc/blog/</url>
+      
+        <content type="html"><![CDATA[<p><strong>theme: hexo-theme-ayer</strong></p><h4 id="1-分类、标签，访问不了"><a href="#1-分类、标签，访问不了" class="headerlink" title="1. 分类、标签，访问不了"></a>1. 分类、标签，访问不了</h4><h5 id="分类"><a href="#分类" class="headerlink" title="分类"></a>分类</h5><p>hexo new page categories</p><p>source\categories\index.md</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">type: &quot;categories&quot;</span><br><span class="line">layout: &quot;categories&quot;</span><br></pre></td></tr></table></figure><h5 id="标签"><a href="#标签" class="headerlink" title="标签"></a>标签</h5><p>hexo new page tags</p><p>source\tags\index.md</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">type: &quot;tags&quot;</span><br><span class="line">layout: &quot;tags&quot;</span><br></pre></td></tr></table></figure><h4 id="2-打开只有文字"><a href="#2-打开只有文字" class="headerlink" title="2. 打开只有文字"></a>2. 打开只有文字</h4><p>新建仓库的时候，填写的仓库名字为<code>账号名.github.io</code>，这样博客地址默认是根路径</p><p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202308272212419.png" alt="image-20230827221050557"></p><p><a href="https://blog.csdn.net/github_38641765/article/details/100182694?spm=1001.2101.3001.6650.1&utm_medium=distribute.pc_relevant.none-task-blog-2~default~CTRLIST~Rate-1-100182694-blog-119349705.235%5Ev38%5Epc_relevant_anti_t3_base&depth_1-utm_source=distribute.pc_relevant.none-task-blog-2~default~CTRLIST~Rate-1-100182694-blog-119349705.235%5Ev38%5Epc_relevant_anti_t3_base&utm_relevant_index=2">参考文章</a></p><h4 id="3-图床图片打不开"><a href="#3-图床图片打不开" class="headerlink" title="3. 图床图片打不开"></a>3. 图床图片打不开</h4><p>raw.githubusercontent.com</p><p>PicGo 设定自定义域名</p><p><a href="https://gcore.jsdelivr.net/gh/%E8%B4%A6%E5%8F%B7%E5%90%8D/%E5%9B%BE%E5%BA%8A%E4%BB%93%E5%BA%93%E5%90%8D">https://gcore.jsdelivr.net/gh/账号名/图床仓库名</a></p><p><a href="https://gcore.jsdelivr.net/gh/frh16/imghost">https://gcore.jsdelivr.net/gh/frh16/imghost</a></p><p>如果不用 CDN，需要科学上网 或 Steam++</p><h4 id="4-前端全文搜索"><a href="#4-前端全文搜索" class="headerlink" title="4. 前端全文搜索"></a>4. 前端全文搜索</h4><p>npm install hexo-generator-search –save</p><p>hexo g &amp;&amp; hexo d 可以看到 search.xml</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> misc </category>
+          
+      </categories>
+      
+      
+    </entry>
+    
+    
+  
+  
+</search>
