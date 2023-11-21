@@ -11,7 +11,7 @@
         name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1"
       />
-      <title>PreparedStatement |  blog</title>
+      <title>Archives: 2023/11 |  blog</title>
   <meta name="generator" content="hexo-theme-ayer">
       
       <link rel="shortcut icon" href="/favicon.ico" />
@@ -52,159 +52,52 @@
       
     <main class="content on">
       <section class="outer">
-  <article
-  id="post-jmeter/PreparedStatement"
-  class="article article-type-post"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
+  
+  
+  <article class="articles">
     
-    <header class="article-header">
+    
+    <h1 class="page-type-title">2023/11</h1>
+    
+    
+  
+  
+  
+  
+  
+  
+  <div class="archives-wrap">
+    <div class="archive-year-wrap">
+      <a href="/archives/2023" class="archive-year">2023</a>
+    </div>
+    <div class="archives">
+      
+      <article class="archive-article archive-type-post">
+  <div class="archive-article-inner">
+    <header class="archive-article-header">
+      <a href="/2023/11/21/gbase8s/%E7%89%A9%E7%90%86%E6%97%A5%E5%BF%97/" class="archive-article-date">
+  <time datetime="2023-11-21T11:58:01.000Z" itemprop="datePublished">11/21</time>
+</a>
        
-<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
-  PreparedStatement
-</h1>
+<h2 itemprop="name">
+  <a class="archive-article-title" href="/2023/11/21/gbase8s/%E7%89%A9%E7%90%86%E6%97%A5%E5%BF%97/"
+    >物理日志</a> 
+</h2>
  
 
-      
     </header>
-     
-    <div class="article-meta">
-      <a href="/2023/09/03/jmeter/PreparedStatement/" class="article-date">
-  <time datetime="2023-09-03T06:49:01.000Z" itemprop="datePublished">2023-09-03</time>
-</a> 
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/jmeter/">jmeter</a>
+    
+    
   </div>
- 
-    </div>
-      
-
-
-
-  
-    <div class="article-entry" itemprop="articleBody">
-       
-  <p>JDBC Request</p>
-<p>有 2 个 PreparedStatement 相关的选项</p>
-<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202309031350398.png" alt="image-20230903135037315"></p>
-<p>单纯选择 Prepared Statement（没开启 Pool Prepared Statements）</p>
-<p>如果使用参数化的方式执行 select * from t1 where id&#x3D;? 性能比 Statement 低（2% 左右，粗略测试），Statement 执行的是 select * from t1 where id&#x3D;1（2% 的原因看内部文档）</p>
-<p>如果使用非参数化方式，都执行 select * from t1 where id&#x3D;1，性能没差别</p>
-<p>总之，完全体现不出来 Prepared Statement 一次预编译，多次执行的优势</p>
-<p>因为，每次请求都会重新创建 PreparedStatement 对象预编译，请求结束后 close()</p>
-<p>AbstractJDBCTestElement.java</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">&#125; <span class="keyword">else</span> <span class="keyword">if</span> (PREPARED_SELECT.equals(currentQueryType)) &#123;</span><br><span class="line">    <span class="keyword">try</span> (<span class="type">PreparedStatement</span> <span class="variable">pstmt</span> <span class="operator">=</span> getPreparedStatement(conn)) &#123;</span><br><span class="line">        setArguments(pstmt);</span><br><span class="line">        <span class="type">ResultSet</span> <span class="variable">rs</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            rs = pstmt.executeQuery();</span><br><span class="line">            sample.latencyEnd();</span><br><span class="line">            <span class="keyword">return</span> getStringFromResultSet(rs).getBytes(ENCODING);</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            close(rs);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125; <span class="keyword">else</span> <span class="keyword">if</span> (PREPARED_UPDATE.equals(currentQueryType)) &#123;</span><br><span class="line">    <span class="keyword">try</span> (<span class="type">PreparedStatement</span> <span class="variable">pstmt</span> <span class="operator">=</span> getPreparedStatement(conn)) &#123;</span><br><span class="line">        setArguments(pstmt);</span><br><span class="line">        pstmt.executeUpdate();</span><br><span class="line">        sample.latencyEnd();</span><br><span class="line">        <span class="type">String</span> <span class="variable">sb</span> <span class="operator">=</span> resultSetsToString(pstmt,<span class="literal">false</span>,<span class="literal">null</span>);</span><br><span class="line">        <span class="keyword">return</span> sb.getBytes(ENCODING);</span><br><span class="line">    &#125;</span><br><span class="line">&#125; <span class="keyword">else</span> <span class="keyword">if</span> (ROLLBACK.equals(currentQueryType))&#123;</span><br><span class="line">    </span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> PreparedStatement <span class="title function_">getPreparedStatement</span><span class="params">(Connection conn)</span> <span class="keyword">throws</span> SQLException &#123;</span><br><span class="line">    <span class="keyword">return</span> getPreparedStatement(conn,<span class="literal">false</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> PreparedStatement <span class="title function_">getPreparedStatement</span><span class="params">(Connection conn, <span class="type">boolean</span> callable)</span> <span class="keyword">throws</span> SQLException &#123;</span><br><span class="line">    PreparedStatement pstmt;</span><br><span class="line">    <span class="keyword">if</span> (callable) &#123;</span><br><span class="line">        pstmt = conn.prepareCall(getQuery()); </span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        pstmt = conn.prepareStatement(getQuery()); <span class="comment">// conn 是 DelegatingConnection，先不用管</span></span><br><span class="line">    &#125;</span><br><span class="line">    setQueryTimeout(pstmt, getIntegerQueryTimeout());</span><br><span class="line">    <span class="keyword">return</span> pstmt;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-
-
- 
-      <!-- reward -->
-      
-    </div>
-    
-
-    <!-- copyright -->
-    
-    <div class="declare">
-      <ul class="post-copyright">
-        <li>
-          <i class="ri-copyright-line"></i>
-          <strong>Copyright： </strong>
-          
-          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
-          
-        </li>
-      </ul>
-    </div>
-    
-    <footer class="article-footer">
-       
-<div class="share-btn">
-      <span class="share-sns share-outer">
-        <i class="ri-share-forward-line"></i>
-        分享
-      </span>
-      <div class="share-wrap">
-        <i class="arrow"></i>
-        <div class="share-icons">
-          
-          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
-            <i class="ri-weibo-fill"></i>
-          </a>
-          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
-            <i class="ri-wechat-fill"></i>
-          </a>
-          <a class="qq share-sns" href="javascript:;" data-type="qq">
-            <i class="ri-qq-fill"></i>
-          </a>
-          <a class="douban share-sns" href="javascript:;" data-type="douban">
-            <i class="ri-douban-line"></i>
-          </a>
-          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
-            <i class="icon icon-qzone"></i>
-          </a> -->
-          
-          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
-            <i class="ri-facebook-circle-fill"></i>
-          </a>
-          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
-            <i class="ri-twitter-fill"></i>
-          </a>
-          <a class="google share-sns" href="javascript:;" data-type="google">
-            <i class="ri-google-fill"></i>
-          </a>
-        </div>
-      </div>
-</div>
-
-<div class="wx-share-modal">
-    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
-    <p>扫一扫，分享到微信</p>
-    <div class="wx-qrcode">
-      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://frh16.github.io/2023/09/03/jmeter/PreparedStatement/" alt="微信分享二维码">
-    </div>
-</div>
-
-<div id="share-mask"></div>  
-    </footer>
-  </div>
-
-   
-  <nav class="article-nav">
-    
-      <a href="/2023/11/21/gbase8s/%E7%89%A9%E7%90%86%E6%97%A5%E5%BF%97/" class="article-nav-link">
-        <strong class="article-nav-caption">上一篇</strong>
-        <div class="article-nav-title">
-          
-            物理日志
-          
-        </div>
-      </a>
-    
-    
-      <a href="/2023/08/27/misc/blog/" class="article-nav-link">
-        <strong class="article-nav-caption">下一篇</strong>
-        <div class="article-nav-title">blog</div>
-      </a>
-    
-  </nav>
-
-  
-   
-    
-    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
-    <div id="twikoo" class="twikoo"></div>
-    <script>
-        twikoo.init({
-            envId: ""
-        })
-    </script>
- 
 </article>
+      
+      
+    </div>
+  </div>
+  
+  
 
+  
 </section>
       <footer class="footer">
   <div class="outer">
@@ -324,22 +217,6 @@
 <script src="/js/lazyload.min.js"></script>
 
 <!-- Tocbot -->
- 
-<script src="/js/tocbot.min.js"></script>
-
-<script>
-  tocbot.init({
-    tocSelector: ".tocbot",
-    contentSelector: ".article-entry",
-    headingSelector: "h1, h2, h3, h4, h5, h6",
-    hasInnerContainers: true,
-    scrollSmooth: true,
-    scrollContainer: "main",
-    positionFixedSelector: ".tocbot",
-    positionFixedClass: "is-position-fixed",
-    fixedSidebarOffset: "auto",
-  });
-</script>
 
 <script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
 <link
