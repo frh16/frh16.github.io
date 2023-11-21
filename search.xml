@@ -8,7 +8,7 @@
       <link href="/2023/11/21/gbase8s/%E7%89%A9%E7%90%86%E6%97%A5%E5%BF%97/"/>
       <url>/2023/11/21/gbase8s/%E7%89%A9%E7%90%86%E6%97%A5%E5%BF%97/</url>
       
-        <content type="html"><![CDATA[<ol><li><h5 id="为什么需要物理日志"><a href="#为什么需要物理日志" class="headerlink" title="为什么需要物理日志"></a>为什么需要物理日志</h5></li></ol><p>快速恢复时，先用物理日志记录的前映像恢复，再进行逻辑日志恢复</p><ol start="2"><li><h5 id="为什么需要恢复到前映像"><a href="#为什么需要恢复到前映像" class="headerlink" title="为什么需要恢复到前映像"></a>为什么需要恢复到前映像</h5></li></ol><p><mark>发生checkpoint后，由于内存中的脏数据可能在下一次checkpoint之前被写回到磁盘，这就是我们通常所讲的LRU写（后台写），所以磁盘上的数据再checkpoint之后发生了变化，就不能用作逻辑恢复 </mark>   书 202 页</p><p>也就是说，下一次checkpoint之前，逻辑日志还没落盘，LRU写就先把数据落盘了</p><ol start="3"><li><h5 id="LRU写是什么"><a href="#LRU写是什么" class="headerlink" title="LRU写是什么"></a>LRU写是什么</h5></li></ol><p><mark>共享内存缓冲池（Buffer Pool）通过LRU队列的方式进行集体管理</mark>    书 160 页</p><p>什么时机写，怎么写，书上没说</p><p>通过 LRU 可以知道，缓存淘汰算法</p><p>内存缓冲池是共享的，总有不够用的时候或很久不使用的数据（不知道server具体实现），就会被淘汰掉（落盘）</p><p>书 203 页有个例子</p>]]></content>
+        <content type="html"><![CDATA[<h5 id="为什么需要物理日志"><a href="#为什么需要物理日志" class="headerlink" title="为什么需要物理日志"></a>为什么需要物理日志</h5><p>快速恢复时，先用物理日志记录的前映像恢复，再进行逻辑日志恢复</p><h5 id="为什么需要恢复到前映像"><a href="#为什么需要恢复到前映像" class="headerlink" title="为什么需要恢复到前映像"></a>为什么需要恢复到前映像</h5><p><mark>发生checkpoint后，由于内存中的脏数据可能在下一次checkpoint之前被写回到磁盘，这就是我们通常所讲的LRU写（后台写），所以磁盘上的数据再checkpoint之后发生了变化，就不能用作逻辑恢复 </mark>   书 202 页</p><p>也就是说，下一次checkpoint之前，逻辑日志还没落盘，LRU写就先把数据落盘了</p><h5 id="LRU写是什么"><a href="#LRU写是什么" class="headerlink" title="LRU写是什么"></a>LRU写是什么</h5><p><mark>共享内存缓冲池（Buffer Pool）通过LRU队列的方式进行集体管理</mark>    书 160 页</p><p>什么时机写，怎么写，书上没说</p><p>通过 LRU 可以知道，缓存淘汰算法</p><p>内存缓冲池是共享的，总有不够用的时候或很久不使用的数据（不知道server具体实现），就会被淘汰掉（落盘）</p><p>书 203 页有个例子</p>]]></content>
       
       
       <categories>
