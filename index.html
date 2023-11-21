@@ -117,7 +117,7 @@
 <h5 id="为什么内存中的脏数据可能在下一次checkpoint之前被写回到磁盘（LRU写）"><a href="#为什么内存中的脏数据可能在下一次checkpoint之前被写回到磁盘（LRU写）" class="headerlink" title="为什么内存中的脏数据可能在下一次checkpoint之前被写回到磁盘（LRU写）"></a>为什么内存中的脏数据可能在下一次checkpoint之前被写回到磁盘（LRU写）</h5><p>书上没写，看官网</p>
 <p><a target="_blank" rel="noopener" href="https://www.ibm.com/docs/en/informix-servers/12.10?topic=flushing-lru-write">LRU write - IBM Documentation</a></p>
 <p>LRU writes are performed by page cleaners rather than by sqlexec threads. The database server performs LRU writes as background writes that <strong>typically occur when the percentage of dirty buffers exceeds the percent that is specified for lru_max_dirty in the BUFFERPOOL configuration parameter.</strong></p>
-<p>我理解就是脏数据超过一个配置的最大值，触发 LRU 写，落盘</p>
+<p>就是脏数据的比例超过一个配置的最大脏数据百分比，触发 LRU 写，落盘</p>
 <p>从 LRU 也能猜出一二，这是一种缓存淘汰算法</p>
 <p>书 203 页，有个快速恢复的示例</p>
  
