@@ -11,7 +11,7 @@
         name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1"
       />
-      <title>SQLsmith |  blog</title>
+      <title>Unit 1. Introduction |  blog</title>
   <meta name="generator" content="hexo-theme-ayer">
       
       <link rel="shortcut icon" href="/favicon.ico" />
@@ -53,7 +53,7 @@
     <main class="content on">
       <section class="outer">
   <article
-  id="post-SQLsmith/SQLsmith"
+  id="post-IX9111/1"
   class="article article-type-post"
   itemscope
   itemprop="blogPost"
@@ -64,7 +64,7 @@
     <header class="article-header">
        
 <h1 class="article-title sea-center" style="border-left:0" itemprop="name">
-  SQLsmith
+  Unit 1. Introduction
 </h1>
  
 
@@ -72,11 +72,11 @@
     </header>
      
     <div class="article-meta">
-      <a href="/2024/04/07/SQLsmith/SQLsmith/" class="article-date">
-  <time datetime="2024-04-07T12:57:01.000Z" itemprop="datePublished">2024-04-07</time>
+      <a href="/2025/04/26/IX9111/1/" class="article-date">
+  <time datetime="2025-04-26T13:30:01.000Z" itemprop="datePublished">2025-04-26</time>
 </a> 
   <div class="article-category">
-    <a class="article-category-link" href="/categories/SQLsmith/">SQLsmith</a>
+    <a class="article-category-link" href="/categories/IX9111/">IX9111</a>
   </div>
  
     </div>
@@ -87,18 +87,21 @@
   
     <div class="article-entry" itemprop="articleBody">
        
-  <p>源码：<a target="_blank" rel="noopener" href="https://github.com/anse1/sqlsmith">https://github.com/anse1/sqlsmith</a> tag:v1.4</p>
-<p>在Centos7上用CLion看代码，装了一些东西（顺序不一定），直到项目右键”Reload CMake Project”不报错为止，然后代码点击才能跳转<br>yum install postgresql14<br>yum install gcc-c++<br>yum clean all<br>rm -rf &#x2F;var&#x2F;cache&#x2F;yum&#x2F;*<br>yum install <a target="_blank" rel="noopener" href="https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm">https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm</a><br>yum install llvm5.0-devel<br>yum install postgresql14-devel<br>yum install libpqxx libpqxx-devel</p>
-<p>目的是看懂执行逻辑，不深入c++语法，只查了一下make_shared的含义：</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">make_shared</span>&lt;query_spec&gt;((<span class="keyword">struct</span> prod *)<span class="number">0</span>, s); <span class="comment">// 它会导致query_spec构造函数的调用，括号里是传入的2个参数</span></span><br></pre></td></tr></table></figure>
-
-<p>.cc文件，当做.cpp理解即可</p>
-<p>入口：sqlsmith.cc，只看postgres相关逻辑</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// main()</span></span><br><span class="line"><span class="comment">// 导致schema_pqxx构造函数调用，见下面postgres.cc</span></span><br><span class="line">schema = <span class="built_in">make_shared</span>&lt;schema_pqxx&gt;(options[<span class="string">&quot;target&quot;</span>], options.<span class="built_in">count</span>(<span class="string">&quot;exclude-catalog&quot;</span>));</span><br><span class="line"></span><br><span class="line"><span class="comment">// 执行sqlsmith时，加--dry-run，会把随机生成的语句写到日志里，不会执行</span></span><br><span class="line"><span class="keyword">if</span> (options.<span class="built_in">count</span>(<span class="string">&quot;dry-run&quot;</span>)) &#123;</span><br><span class="line">    <span class="keyword">while</span> (<span class="number">1</span>) &#123;</span><br><span class="line">        shared_ptr&lt;prod&gt; gen = <span class="built_in">statement_factory</span>(&amp;scope);</span><br><span class="line">        gen-&gt;<span class="built_in">out</span>(cout);</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">auto</span> l : loggers)</span><br><span class="line">            l-&gt;<span class="built_in">generated</span>(*gen);</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;;&quot;</span> &lt;&lt; endl;</span><br><span class="line">        queries_generated++;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (options.<span class="built_in">count</span>(<span class="string">&quot;max-queries&quot;</span>)</span><br><span class="line">            &amp;&amp; (queries_generated &gt;= <span class="built_in">stol</span>(options[<span class="string">&quot;max-queries&quot;</span>])))</span><br><span class="line">            <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>postgres.cc</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">schema_pqxx::<span class="built_in">schema_pqxx</span>(std::string &amp;conninfo, <span class="type">bool</span> no_catalog) : <span class="built_in">c</span>(conninfo)</span><br><span class="line">&#123;</span><br><span class="line">  <span class="comment">// 使用 libpqxx (PostgreSQL C++ API) 读元数据，包括：</span></span><br><span class="line">    </span><br><span class="line">  <span class="comment">// types</span></span><br><span class="line">  <span class="comment">// name,oid,typdelim,typrelid,typelem,typarray,typtype</span></span><br><span class="line">    </span><br><span class="line">  <span class="comment">// tables </span></span><br><span class="line">  <span class="comment">// name，schema，is_insertable，is_base_table（后边，只有是true的表才有机会从中随机）</span></span><br><span class="line">    </span><br><span class="line">  <span class="comment">// columns and constraints</span></span><br><span class="line">  <span class="comment">// operators</span></span><br><span class="line">  <span class="comment">// routines</span></span><br><span class="line">  <span class="comment">// routine parameters</span></span><br><span class="line">  <span class="comment">// aggregates</span></span><br><span class="line">  <span class="comment">// aggregate parameters</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">ifdef</span> HAVE_LIBPQXX7</span></span><br><span class="line">  c.<span class="built_in">close</span>();</span><br><span class="line"><span class="meta">#<span class="keyword">else</span></span></span><br><span class="line">  c.<span class="built_in">disconnect</span>();</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">  <span class="built_in">generate_indexes</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
+  <p><strong>chunks</strong></p>
+<p>Informix Dynamic Server disk space is allocated in units called chunks.</p>
+<p>To uniquely describe a particular <strong>chunk</strong>, you must specify three things: the chunk <strong>path</strong>, the <strong>offset</strong> (kilobytes) into the device where the chunk begins, and the <strong>size</strong> (kilobytes) of the chunk.</p>
+<p><strong>pages</strong></p>
+<p>The <strong>default page size</strong> is either <strong>2</strong> kilobytes or <strong>4</strong> kilobytes, depending on the platform.</p>
+<p>The <strong>page size</strong> can be configured for each dbspace from <strong>2K</strong> to <strong>16K</strong> and <mark>must be divisible by the default page size</mark>.</p>
+<p>The <strong>size of a chunk</strong> must be <strong>a multiple of the page size</strong>.</p>
+<p>chunk的大小必须是页大小的倍数</p>
+<p><strong>extents</strong></p>
+<p>An <em>extent</em> is a <strong>physically contiguous</strong> group of related pages that are <strong>fully contained in a chunk</strong>.</p>
+<p>extent是物理上连续的一组相关pages，这些页面完全包含在一个chunk中。</p>
+<p>Extents are not exclusively associated with tblspaces.The physical log is made from one extent. The 12 reserved pages in the root dbspace could also be called an extent</p>
+<p><code>extents</code>不只和<code>tblspaces</code>关联。物理日志由一个extent构成。<code>rootdbs</code>的12个保留页也可以被叫做一个extent</p>
+<p><strong>Tblspaces</strong></p>
+<p>A tblspace is a set of extents allocated to a specific database object. </p>
  
       <!-- reward -->
       
@@ -163,7 +166,7 @@
     <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://frh16.github.io/2024/04/07/SQLsmith/SQLsmith/" alt="微信分享二维码">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://frh16.github.io/2025/04/26/IX9111/1/" alt="微信分享二维码">
     </div>
 </div>
 
@@ -174,19 +177,10 @@
    
   <nav class="article-nav">
     
-      <a href="/2025/04/26/IX9111/1/" class="article-nav-link">
-        <strong class="article-nav-caption">上一篇</strong>
-        <div class="article-nav-title">
-          
-            Unit 1. Introduction
-          
-        </div>
-      </a>
     
-    
-      <a href="/2023/11/21/gbase8s/%E7%89%A9%E7%90%86%E6%97%A5%E5%BF%97/" class="article-nav-link">
+      <a href="/2024/04/07/SQLsmith/SQLsmith/" class="article-nav-link">
         <strong class="article-nav-caption">下一篇</strong>
-        <div class="article-nav-title">物理日志</div>
+        <div class="article-nav-title">SQLsmith</div>
       </a>
     
   </nav>
