@@ -89,19 +89,19 @@
        
   <p><strong>chunks</strong></p>
 <p>Informix Dynamic Server disk space is allocated in units called chunks.</p>
-<p>To uniquely describe a particular <strong>chunk</strong>, you must specify three things: the chunk <strong>path</strong>, the <strong>offset</strong> (kilobytes) into the device where the chunk begins, and the <strong>size</strong> (kilobytes) of the chunk.</p>
+<p>To uniquely describe a particular <strong>chunk</strong>, you must specify three things: the chunk <strong>path</strong>, the <strong>offset</strong> (kilobytes) into the device where the chunk begins, and the <strong>size</strong> (kilobytes) of the chunk.  </p>
 <p><strong>pages</strong></p>
 <p>The <strong>default page size</strong> is either <strong>2</strong> kilobytes or <strong>4</strong> kilobytes, depending on the platform.</p>
 <p>The <strong>page size</strong> can be configured for each dbspace from <strong>2K</strong> to <strong>16K</strong> and <mark>must be divisible by the default page size</mark>.</p>
 <p>The <strong>size of a chunk</strong> must be <strong>a multiple of the page size</strong>.</p>
-<p>chunk的大小必须是页大小的倍数</p>
+<p>chunk的大小必须是页大小的倍数  </p>
 <p><strong>extents</strong></p>
 <p>An <em>extent</em> is a <strong>physically contiguous</strong> group of related pages that are <strong>fully contained in a chunk</strong>.</p>
 <p>extent是物理上连续的一组相关pages，这些页面完全包含在一个chunk中。</p>
 <p>Extents are not exclusively associated with tblspaces.The physical log is made from one extent. The 12 reserved pages in the root dbspace could also be called an extent</p>
-<p><code>extents</code>不只和<code>tblspaces</code>关联。物理日志由一个extent构成。<code>rootdbs</code>的12个保留页也可以被叫做一个extent</p>
+<p><code>extents</code>不只和<code>tblspaces</code>关联。物理日志由一个extent构成。<code>rootdbs</code>的12个保留页也可以被叫做一个extent  </p>
 <p><strong>Tblspaces</strong></p>
-<p>A tblspace is a set of extents allocated to a specific database object. </p>
+<p>A tblspace is a set of extents allocated to a specific database object.   </p>
  
       <!-- reward -->
       
