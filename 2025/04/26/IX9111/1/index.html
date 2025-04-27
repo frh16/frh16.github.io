@@ -88,13 +88,15 @@
     <div class="article-entry" itemprop="articleBody">
        
   <p><strong>chunks</strong></p>
+<p>Chunks contain extents; extents contain pages Chunks contain extents; extents contain page</p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202504272252887.png" alt="image-20250427225213804"></p>
 <p>Informix Dynamic Server disk space is allocated in units called chunks.</p>
 <p>To uniquely describe a particular <strong>chunk</strong>, you must specify three things: the chunk <strong>path</strong>, the <strong>offset</strong> (kilobytes) into the device where the chunk begins, and the <strong>size</strong> (kilobytes) of the chunk.</p>
 <br>
 
 <p><strong>pages</strong></p>
 <p>The <strong>default page size</strong> is either <strong>2</strong> kilobytes or <strong>4</strong> kilobytes, depending on the platform.</p>
-<p><code>默认页大小 2kb 或 4kb</code></p>
+<p><code>默认页大小 2KB 或 4KB (kilobytes是KB)</code></p>
 <p>The <strong>page size</strong> can be configured for each dbspace from <strong>2K</strong> to <strong>16K</strong> and <strong>must be divisible by the default page size</strong>.</p>
 <p><code>页大小可配置为2K - 16K，必须能被默认页面大小整除</code></p>
 <p>The <strong>size of a chunk</strong> must be <strong>a multiple of the page size</strong>.</p>
@@ -129,6 +131,18 @@
 <p><code>此机制有助于避免达到extent分配限制。</code></p>
 </li>
 </ol>
+<br>
+
+<p><strong>Dbspaces, Blobspaces, and Sbspaces</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202504272258506.png" alt="image-20250427225802434"></p>
+<p>Dbspaces, blobspaces, and sbspaces are named collections of one or more chunks. These spaces do not define any physical space boundaries, but are <em>logical</em> collections of the <em>physical</em> chunks.</p>
+<p><code>前一句不知道怎么翻译，理解成每个space都有名字，由一个或多个chunk组成吧。这些space没有定义任何物理空间边界，而是物理chunk的逻辑集合。</code></p>
+<p>A <em>dbspace</em> chunk contains data and index pages in the form of tblspaces. The first dbspace in an Informix Dynamic Server system always contains the first chunk, or <em>root chunk</em>. Therefore, dbspace 1 is always the <em>root dbspace</em>.</p>
+<p><code>dbspace chunk以tblspace的形式包含数据页和索引页。IDS的第一个dbspace始终包含第一个chunk，或称为root chunk。因此dbspace 1 始终是 root dbspace</code></p>
+<p>A blobspace chunk contains BYTE and TEXT data.</p>
+<p><code>blobspace chunk包含BYTE和TEXT数据</code></p>
+<p>An sbspace chunk contains smart large object (BLOB and CLOB) data and metadata pages to help manage the data.</p>
+<p><code>sbspace chunk包含智能大对象（BLOB 和 CLOB）数据和元数据页，以帮助管理数据。</code></p>
  
       <!-- reward -->
       
