@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+
+
+<html lang="en">
+  
+
+    <head>
+      <meta charset="utf-8" />
+        
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>IX9111 - Unit 2. The Dynamic Server Page |  blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    </head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-IX9111/2"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  IX9111 - Unit 2. The Dynamic Server Page
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/05/05/IX9111/2/" class="article-date">
+  <time datetime="2025-05-05T14:00:00.000Z" itemprop="datePublished">2025-05-05</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/IX9111/">IX9111</a>
+  </div>
+ 
+    </div>
+      
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p><strong>Page: Smallest Unit of I&#x2F;O</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505052201901.png" alt="image-20250505220102809"></p>
+<p><em>Pages</em> are the most basic unit of I&#x2F;O in Informix Dynamic Server; a server process does not read or write to a chunk in an increment smaller than a page. As often as possible, however, I&#x2F;O is performed on more than one page at a time.</p>
+<p><code>在 IDS 中，页是 I/O 的最基本单位；服务进程在访问一个 chunk 时，读取或写入的最小单位就是一个页面。不过，I/O 通常会同时在多个页面上执行。</code></p>
+<p>The default page size for a machine is either 2KB or 4KB depending on the platform. You can configure the page size for each dbspace to be any value from 2KB to 16KB, but the value must be divisible by the default page size.</p>
+<p><code>机器的默认页面大小为 2KB 或 4KB，具体取决于平台。您可以 可将每个数据表空间的页面大小配置为 2KB 至 16KB 之间的任意值，但该值必须能被默认页面大小除以。值必须能被默认页面大小整除。</code></p>
+<p>At a binary level, each allocated page in a system contains a unique stream of data. But the structure and meaning of that data is always based on a handful of templates. This module teaches you how to recognize the structural similarities between Dynamic Server pages, and decipher the important parts of those structures. These skills help you understand Dynamic Server architecture and behavior to a degree you never thought possible.</p>
+<p><code>在二进制层面上，系统中分配的每个页面都包含唯一的数据流。但这些数据的结构和含义总是基于一些模板。本模块教你如何识别 Dynamic Server 页面之间的结构相似性，并解读这些结构的重要部分。这些技能将帮助你理解 Dynamic Server 结构和行为，达到你从未想象过的程度。</code>  </p>
+<p><strong>Our Imagined View of a Page</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505052211934.png" alt="image-20250505221109866"></p>
+<p><code>Linux中的od命令是一个十六进制和其他进制的转换工具，它可以用于显示二进制文件的内容。-x：以十六进制的形式显示文件内容；</code></p>
+<p>It is rarely convenient to picture a block of bytes as a continuous stream. Our preference is to reorganize the bytes so they can be viewed as if words are seen on a printed page.</p>
+<p><code>将字节块想象成连续的数据流并不方便。我们更倾向于重新组织字节，使它们可以像印刷页面上的文字一样被查看。</code></p>
+<p>In the example above, the <strong>od</strong> (octal dump) utility in UNIX and Linux displays a byte stream from a page. In this output, the numbers on the left represent byte offsets in <em>octal</em> and are not part of the data. The rest of the output is the actual stream of bytes from the <strong>rootchunk</strong>file displayed as hexadecimal values (courtesy of the <strong>-x</strong> option). Note that two hexadecimal digits (<strong>7c</strong>, for instance) represent one byte of data. Therefore, with a little counting, you can see that <strong>od</strong> displays 16 bytes of data on each line. The significance of the number 16 is that it equals 0x10 (hexadecimal 10).</p>
+<p><code>在上面的示例中，UNIX 和 Linux 中的 od（八进制转储）实用程序显示了一个页面的字节流。在该输出中，左边的数字代表八进制的字节偏移量，并不是数据的一部分。输出的其余部分是以十六进制值显示的 rootchunk 文件的实际字节流（由 -x 选项提供）。请注意，两个十六进制数字（例如 7c）代表一个字节的数据。因此，只要稍微数一数，就可以看到 od 每行显示 16 个字节数据。数字 16 的意义在于它等于 0x10（十六进制 10）。</code></p>
+<p>Because most programmers are familiar with this output format, we tend to picture Dynamic Server pages the same way: as a certain number of 16-byte lines. Therefore, this is the standard used in the Informix Dynamic Server course manuals.</p>
+<p><code>由于大多数程序员都熟悉这种输出格式，我们往往会以同样的方式来描绘 Dynamic Server 页面：一定数量的 16 字节行。因此，这是 IDS 课程手册中使用的标准。</code>  </p>
+<p><strong>Page Layout</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505052222234.png" alt="image-20250505222202164"></p>
+<p>The layout of a page is shown in the slide above.</p>
+<p><code>页面布局如上图所示。</code></p>
+<p><strong>Page header</strong></p>
+<p>The page header occupies the first 24 bytes on the page. It contains such information as the location, type, and current capacity of the page.</p>
+<p><code>页头占页面的前 24 个字节。它包含页面的位置、类型和当前容量等信息。</code></p>
+<p><strong>Timestamp</strong></p>
+<p>Each time a page is modified, the timestamp field, located in the last 4 bytes of the page, is updated. The timestamp can be used to compare with other pages to determine which was updated most recently.</p>
+<p><code>每次修改页面时，位于页面最后 4 个字节的时间戳字段都会更新。时间戳可用于与其他页面进行比较，以确定哪个页面是最近更新的。</code></p>
+<p><strong>Slot table</strong></p>
+<p>The slot table enables the database server to quickly find data on a page. It is a series of 4-byte entries that begins at the page-ending timestamp and grows toward the beginning of the page. Each entry in the table describes one <em>slot</em> on the page, which can contain a data row, or some other structure. A slot table entry is comprised of two parts: the location of the slot’s first byte and the length of the slot. A slot table entry functions as a kind of pointer, allowing direct, random access to slots on the page.</p>
+<p><code>槽表使数据库服务能够快速查找页面上的数据。它是一系列 4 字节的条目，从页面结束的时间戳开始，向页面的开头延伸。表中的每个条目描述页面上的一个槽，其中可以包含数据行或其他结构。槽表项由两部分组成：槽的第一个字节位置和槽的长度。槽表项作为一种指针，允许直接随机访问页面上的槽。</code></p>
+<p>Page types that tend to be searched sequentially do not utilize a slot table, although they can have one. Logical log pages are an example of a page type that has no slot table at all.</p>
+<p><code>倾向于按顺序搜索的页面类型不使用slot table，尽管它们可以有slot table。逻辑日志页就是完全没有slot table的页面类型。</code></p>
+<p>紫本177页：</p>
+<p><code>slots table：为 slots 描述信息，数据页中有多少 slots，则会对应多少个 slots bitmap，每个占用 4 Byte，记录 slots 在页内的偏移地址和长度，当记录被删除时，只是将其中的占用长度设置为 0，在物理上并没有将记录信息清空。</code></p>
+<p><strong>Page Header Overview</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505052238924.png" alt="image-20250505223812841"></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505052240740.png" alt="image-20250505224026671"></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505052241776.png" alt="image-20250505224107724"></p>
+<p>The <strong>pg_offset</strong> field contains the <em>page offset</em>, which indicates the physical location of the page within the chunk.</p>
+<p><code>pg_offset 字段包含页面偏移量，表示页面在chunk中的物理位置。</code></p>
+<p>The page offset value is incremented by one for each subsequent page in the chunk. The first page in a chunk has a <strong>pg_offset</strong> value of 0. The maximum <strong>pg_offset</strong> value is based on the maximum size of a chunk, which is around 4 terabytes.</p>
+<p><code>页偏移值每增加一页，页面偏移值就递增一次。chunk中的第一个页面的 pg_offset 值为 0。 最大 pg_offset 值基于chunk的最大大小，约为 4 TB。</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505052245545.png" alt="image-20250505224529492"></p>
+<p><strong>Chunk number</strong></p>
+<p>The <strong>pg_chunk</strong> field contains the number of the chunk where the page is located. Chunk numbering starts at 1. The combination of the <strong>pg_chunk</strong> and <strong>pg_offset</strong> provide all the information needed to identify the <em>page address</em>. The maximum <strong>pg_chunk</strong> value is 32,767.</p>
+<p><code>pg_chunk 字段包含页面所在chunk的编号，chunk编号从 1 开始。pg_chunk 和 pg_offset 的组合提供了识别页面地址所需的全部信息。pg_chunk 的最大值为 32,767。</code></p>
+<p>紫本176页：</p>
+<p>Page Address ： 存 储 页 的 地 址 信 息 ， 占 用 6 Byte ， 由 两 部 分 组 成 ：chunknum+pageoffsize，其中 chunknum 占用 2 Byte，包含了符号位，故支持的最大 chunk 数为 FFFF&#x2F;2&#x3D;32767，也就是说一个 GBase 8t 实例最多可以支持 32767个 chunk。Pageoffzie 占用 4 Byte，故一个 chunk 的最大页数 FFFFFFFF 去掉符号位&#x3D;2 的 31 次方＝2 billion，对于 2k 的 pagesize，最大的空间为 4T&#x3D;22 的 31 次方*2K&#x3D;2 147 483 648*2k。</p>
+<p><strong>Page checksum</strong></p>
+<p>The <strong>pg_cksum</strong> field stores a checksum value that is used to validate the consistency of a page.</p>
+<p><code>pg_cksum 字段存储一个校验和值，用于验证页面的一致性。</code></p>
+<p>紫本：CHKSUM：校验位，占用 2 Byte。</p>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://frh16.github.io/2025/05/05/IX9111/2/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2025/04/26/IX9111/1/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">IX9111 - Unit 1. Introduction</div>
+      </a>
+    
+  </nav>
+
+  
+   
+    
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2023-2025
+        <i class="ri-heart-fill heart_icon"></i> fengrh
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    
+
+  </div>
+</body>
+
+</html>
