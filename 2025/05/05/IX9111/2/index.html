@@ -207,8 +207,154 @@
 <p><code>分片表中的每个 dbspace 分片都有一个对应的表空间（tblspace）和一个分区号（partnum）。</code></p>
 <p>Partition numbers for unfragmented tables are stored in the <strong>systables</strong> system catalog table. Here is an example of a query to obtain a partition number in both decimal and hexadecimal format:</p>
 <p><code>未分片表的分区号（partnum）存储在系统目录表 systables 中。下面是一个用于以十进制和十六进制格式获取分区号的查询示例：</code></p>
-<p><strong>在数据库领域中，”catalog” 实际上就是指数据库的元数据（metadata）</strong>。</p>
-<p>更具体地讲，数据库的 <strong>catalog</strong> 是由数据库系统维护的一组表或数据结构，用来<strong>描述数据库中对象的结构和属性</strong>，</p>
+<p>deepseek：</p>
+<blockquote>
+<p>在数据库领域中，”catalog” 实际上就是指数据库的元数据（metadata）。</p>
+<p>更具体地讲，数据库的 <strong>catalog</strong> 是由数据库系统维护的一组表或数据结构，用来描述数据库中对象的结构和属性，</p>
+</blockquote>
+<p>SELECT partnum, HEX(partnum) FROM systables WHERE tabname &#x3D; “<em>table_name</em>“;</p>
+<p>示例：</p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505072237755.png" alt="image-20250507223709618"></p>
+<p>You can also obtain a partition number for an unfragmented table by querying the <strong>sysmaster</strong> database:</p>
+<p><code>您还可以通过查询 sysmaster 数据库来获取未分区表的分区号：</code></p>
+<p>DATABASE sysmaster;</p>
+<p>SELECT partnum, HEX(partnum) FROM systabnames WHERE tabname &#x3D; “<em>table_name</em>“;</p>
+<p>示例：</p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505072238153.png" alt="image-20250507223809100"></p>
+<p>If a table is fragmented, the value in the <strong>partnum</strong> column of <strong>systables</strong> and <strong>systabnames</strong> is zero. To obtain a list of partnums for a fragmented table, it is necessary to query the <strong>sysfragments</strong> system catalog:</p>
+<p><code>如果表是分片的，则 systables 和 systabnames 中 partnum 列的值为零。要获取分片表的 partnum 列表，必须查询 sysfragments ：</code></p>
+<p>SELECT partn, HEX(partn) FROM systables t, sysfragments f WHERE t.tabid &#x3D; f.tabid AND tabname &#x3D; “<em>table_name</em>“;</p>
+<p>示例：</p>
+<p>CREATE TABLE f1 (<br>    id int,<br>    name VARCHAR(10)<br>)<br>FRAGMENT BY EXPRESSION<br>    id &lt; 10 IN datadbs1,<br>    id &gt;&#x3D; 10 AND id &lt; 20 IN datadbs2,<br>    id &gt;&#x3D; 20 IN datadbs3;</p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505072253021.png" alt="image-20250507225315967"></p>
+<p>Perhaps the easiest way to find a list of all partnums associated with a table (including partition numbers for index partitions) is by using the <strong>oncheck -pt</strong> command:</p>
+<p><code>要查找与表相关的所有分区号列表（包括索引分区的分区号），最简单的方法可能是使用 oncheck -pt 命令：</code></p>
+<p>oncheck -pt <em>database_name</em>:<em>table_name</em></p>
+<p>Partition numbers are displayed under the heading <strong>Partition partnum</strong> in decimal format.</p>
+<p><code>分区编号以十进制格式显示在分区 partnum 标题下。</code></p>
+<p>示例：</p>
+<blockquote>
+<p>[root@frh gbase]# oncheck -pt testdb:f1</p>
+<p>TBLspace Report for testdb:root.f1</p>
+<pre><code>              Table fragment partition datadbs1 in DBspace datadbs1
+
+Physical Address               4:5
+Creation date                  05/07/2025 07:51:07
+TBLspace Flags                 902        Row Locking
+                                          TBLspace contains VARCHARS
+                                          TBLspace use 4 bit bit-maps
+Maximum row size               16
+Number of special columns      1
+Number of keys                 0
+Number of extents              1
+Current serial value           1
+Current SERIAL8 value          1
+Current BIGSERIAL value        1
+Current REFID value            1
+Pagesize (k)                   2
+First extent size              8
+Next extent size               8
+Number of pages allocated      8
+Number of pages used           2
+Number of data pages           1
+Number of rows                 1
+Partition partnum              4194306
+Partition lockid               4194306
+
+Extents
+     Logical Page     Physical Page        Size Physical Pages
+                0              4:53           8          8
+
+              Table fragment partition datadbs2 in DBspace datadbs2
+
+Physical Address               5:5
+Creation date                  05/07/2025 07:51:07
+TBLspace Flags                 902        Row Locking
+                                          TBLspace contains VARCHARS
+                                          TBLspace use 4 bit bit-maps
+Maximum row size               16
+Number of special columns      1
+Number of keys                 0
+Number of extents              1
+Current serial value           1
+Current SERIAL8 value          1
+Current BIGSERIAL value        1
+Current REFID value            1
+Pagesize (k)                   2
+First extent size              8
+Next extent size               8
+Number of pages allocated      8
+Number of pages used           2
+Number of data pages           1
+Number of rows                 1
+Partition partnum              5242882
+Partition lockid               4194306
+
+Extents
+     Logical Page     Physical Page        Size Physical Pages
+                0              5:53           8          8
+
+              Table fragment partition datadbs3 in DBspace datadbs3
+
+Physical Address               6:5
+Creation date                  05/07/2025 07:51:07
+TBLspace Flags                 902        Row Locking
+                                          TBLspace contains VARCHARS
+                                          TBLspace use 4 bit bit-maps
+Maximum row size               16
+Number of special columns      1
+Number of keys                 0
+Number of extents              1
+Current serial value           1
+Current SERIAL8 value          1
+Current BIGSERIAL value        1
+Current REFID value            1
+Pagesize (k)                   2
+First extent size              8
+Next extent size               8
+Number of pages allocated      8
+Number of pages used           2
+Number of data pages           1
+Number of rows                 1
+Partition partnum              6291458
+Partition lockid               4194306
+
+Extents
+     Logical Page     Physical Page        Size Physical Pages
+                0              6:53           8          8
+</code></pre>
+</blockquote>
+<p><strong>oncheck -pP&#x2F;pp</strong></p>
+<p>The syntax to use with <strong>oncheck -pP</strong> is shown in the slide above. For example, to display page 0 from chunk 1, type:</p>
+<p><code>使用 oncheck -pP 的语法如上图所示。例如，要显示chunk 1 的第 0 页，请键入</code></p>
+<p>oncheck -pP 1 0</p>
+<p>To display logical page 0 (the first bitmap page) from partition number 0x0100022, type:</p>
+<p><code>要显示分区号 0x0100022 的逻辑页 0（第一个位图页），请键入</code></p>
+<p>oncheck -pp 0x0100022 0</p>
+<p>这块只是介绍一下这2命令，下面有详细介绍</p>
+<p><strong>Logical page numbers</strong></p>
+<p>Picture all the pages in a table lined up in chronological order and numbered, starting with 0. These would be their <em>logical page numbers</em>. If this is a confusing concept at the moment, do not worry. You will be examining tblspaces further in a later module.</p>
+<p><code>想象一下，所有页面在一个表格中按时间顺序排列，并从0开始编号。这些编号就是它们的逻辑页码。如果你现在对这个概念感到困惑，不用担心——你将在后续的模块中进一步学习表空间（tblspaces）。</code></p>
+<p><strong>Note</strong></p>
+<p>In rare cases, the data on a particular page is formatted differently by <strong>oncheck</strong> depending on the option used. For instance, the <strong>-pP</strong> option displays only the page header for a bitmap page, but the <strong>-pp</strong> option displays the bit values in a more readable format.</p>
+<p><code>在极少数情况下，oncheck 会根据所使用的选项对特定页面上的数据进行不同的格式化处理。例如，-pP 选项只显示位图页面的页头，而 -pp 选项则以更易读的格式显示位值。</code></p>
+<p>There is one more variation on the <strong>oncheck -pp</strong> syntax that we have not mentioned because in fact, we do not recommend that you use it. In the spirit of providing you every tool we can think of, here it is:</p>
+<p><code>oncheck -pp 语法还有一个变种，我们没有提及，因为事实上我们</code><mark>不建议你使用它</mark><code>。本着为您提供我们所能想到的所有工具的精神，我们在此介绍它：</code></p>
+<p>oncheck -pp <em>database</em>:<em>table_name rowid</em></p>
+<p>Only rowids above 0x100 work with this syntax; you cannot display the first bitmap page (0x100), but all other used pages in the table are fair game. For example:</p>
+<p><code>只有大于 0x100 的 rowid 才能使用这种语法；你无法显示第一个位图页（0x100），但表中所有其他已使用的页面都可以显示。例如：</code></p>
+<p>oncheck -pp stores_demo:customer 0x201</p>
+<p>Now, you might expect the above command to display only one row from the <strong>stores_demo:customer</strong> table, the first slot on logical page 2. In fact, that command displays all rows on page 2. It is equivalent to the command:</p>
+<p><code>现在，你可能以为上述命令只会显示 stores_demo:customer 表中的一条记录，即逻辑页面 2 的第一个slot。事实上，该命令会显示第 2 页上的所有行。它等同于以下命令</code></p>
+<p>oncheck -pp 0x10001a 0x2</p>
+<p>(assuming the partition number for the <strong>stores_demo:customer</strong> table is 0x10001a).</p>
+<p><code>假设stores_demo:customer表的分区编号为 0x10001a</code></p>
+<p>The advantage, of course, is that you do not need to determine the partnum for a table in order to use <strong>oncheck -pp</strong>.</p>
+<p><code>当然，这样做的好处是，在使用 oncheck -pp 时不需要确定表的partnum。</code></p>
+<p>The disadvantage in using this syntax is that using a rowid with <strong>oncheck</strong> and receiving output for an entire page might slow your efforts to understand the meaning of a rowid.</p>
+<p><code>使用这种语法的一个缺点是，当你在 oncheck 中使用 rowid 并获得整个页面的输出时，可能会降低你理解 rowid 含义的效率。</code></p>
+<p>While it is tempting to avoid working with partition numbers, the relationship between a tblspace and its partnum is extremely important to grasp. Until you have used the recommended syntax long enough to be tired of it, it is a good idea to spend the extra few seconds looking up a table’s partnum.</p>
+<p><code>虽然避免使用分区编号很有诱惑力，但掌握 tblspace 与其 partnum 之间的关系极为重要。在使用推荐语法足够长的时间并对其感到厌倦之前，最好多花几秒钟来查找表的分区号。</code></p>
  
       <!-- reward -->
       
