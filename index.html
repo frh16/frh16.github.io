@@ -359,6 +359,7 @@ Extents
 <p><strong>Note</strong></p>
 <p>In rare cases, the data on a particular page is formatted differently by <strong>oncheck</strong> depending on the option used. For instance, the <strong>-pP</strong> option displays only the page header for a bitmap page, but the <strong>-pp</strong> option displays the bit values in a more readable format.</p>
 <p><code>在极少数情况下，oncheck 会根据所使用的选项对特定页面上的数据进行不同的格式化处理。例如，-pP 选项只显示位图页面的页头，而 -pp 选项则以更易读的格式显示位值。</code></p>
+<p>应该要到Unit 4才能知道bitmap page是什么，先不用管他</p>
 <p>There is one more variation on the <strong>oncheck -pp</strong> syntax that we have not mentioned because in fact, we do not recommend that you use it. In the spirit of providing you every tool we can think of, here it is:</p>
 <p><code>oncheck -pp 语法还有一个变种，我们没有提及，因为事实上我们</code><mark>不建议你使用它</mark><code>。本着为您提供我们所能想到的所有工具的精神，我们在此介绍它：</code></p>
 <p>oncheck -pp <em>database</em>:<em>table_name rowid</em></p>
@@ -384,6 +385,28 @@ Extents
 <p>adv.极其;非常;极端;</p>
 <p>grasp</p>
 <p>英[ɡrɑːsp]    美[ɡræsp]<br>vt.抓住;理解;领会;领悟;抓牢;毫不犹豫地抓住(机会);n.理解(力);控制;领会;紧握;紧抓;能力所及;</p>
+</blockquote>
+<p>实际使用：</p>
+<blockquote>
+<p>[root@frh gbase]# oncheck -pp 0x00D00047 0<br>addr             stamp    chksum nslots flag type         frptr frcnt next     prev<br>13:2087          8188418  fa54   0      804  FREE         24    2020  0        0<br>   0:8 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0</p>
+<p>[root@frh gbase]# oncheck -pp 0x00D00047 1<br>addr             stamp    chksum nslots flag type         frptr frcnt next     prev<br>13:2088          8187311  e5f6   2      801  DATA         42    1994  0        0<br>        slot ptr   len   flg<br>        1    24    9     0<br>        2    33    9     0<br>slot   1:<br>    0:  0  0  0  1  0  3 61 61 61                        ……aaa…….<br>slot   2:<br>    0:  0  0  0  2  0  3 62 62 62                        ……bbb…….</p>
+</blockquote>
+<p>不知道为什么从1开始</p>
+<blockquote>
+<p>chatgpt：</p>
+<p>这是 <strong>Informix 的分区结构（partition）设计</strong>所决定的：</p>
+<h4 id="每个-partition（partnum-对应的分片）中的："><a href="#每个-partition（partnum-对应的分片）中的：" class="headerlink" title="每个 partition（partnum 对应的分片）中的："></a>每个 partition（partnum 对应的分片）中的：</h4><ul>
+<li><strong>逻辑页 0</strong> 是所谓的 <strong>partition header page</strong>（也叫 <code>partn page</code>）；<ul>
+<li>它保存了该分区的元信息，如 extent 列表、分片状态等；</li>
+<li>不是用来存储行数据的；</li>
+</ul>
+</li>
+<li><strong>逻辑页 1 开始</strong> 才是实际存储数据的页（如果有）；<ul>
+<li>数据行通常从逻辑页 1、2、3 开始向后分布；</li>
+<li>这些页才是你期望看到的表行内容页。</li>
+</ul>
+</li>
+</ul>
 </blockquote>
 <p><strong>Displaying a Big Page</strong></p>
 <p>先看下边Notes</p>
@@ -411,7 +434,6 @@ Extents
 <p>The formats used for each header element in the display are:</p>
 <p><code>显示中每个标题元素所使用的格式如下：（十进制、十六进制、字符）</code></p>
 <p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505082035860.png" alt="image-20250508203538773"></p>
-<p>印证了前边说的：“-pP 选项只显示位图页面的页头”</p>
 <p><strong>Notes:</strong></p>
 <p>A page header displayed by <strong>oncheck</strong> can be frustrating to decipher at first, because the utility does not use a consistent notation for the elements. Some are displayed as hexadecimal values, some as decimals. The slide above indicates the format used for each element.</p>
 <p><code>一开始，oncheck 显示的页眉可能会让人难以理解，因为该工具对元素没有使用统一的符号。有些显示为十六进制值，有些显示为小数。上面的幻灯片显示了每个元素使用的格式。</code></p>
