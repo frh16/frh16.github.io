@@ -67,6 +67,140 @@
     
     
     <article
+  id="post-IX9111/3"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h2 itemprop="name">
+  <a class="article-title" href="/2025/05/09/IX9111/3/"
+    >IX9111 - Unit 3. Dbspace Layout</a> 
+</h2>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/05/09/IX9111/3/" class="article-date">
+  <time datetime="2025-05-09T13:44:05.000Z" itemprop="datePublished">2025-05-09</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/IX9111/">IX9111</a>
+  </div>
+ 
+    </div>
+      
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p><strong>A Hypothetical Root Dbspace</strong></p>
+<p>一个假想的root dbspace</p>
+<blockquote>
+<p>hypothetical<br>英[ˌhaɪpəˈθetɪkl]  美[ˌhaɪpəˈθetɪkl]<br>adj.（基于）假设的，假定的;有待证实的;</p>
+</blockquote>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505092150641.png" alt="image-20250509215037499"></p>
+<p><strong>Notes:</strong></p>
+<p>The root dbspace is an Informix database server’s first and most critical dbspace. It contains the system’s first chunk, the <em>root chunk</em>. As with other dbspaces, additional chunks can be added over time. Since the root dbspace as a whole can never be dropped, the initial chunk for the root dbspace should be configured wisely.</p>
+<p><code>root dbspace是 IDS 的第一个也是最关键的数据库空间。它包含系统的第一个数据块，即 root chunk。与其他数据库空间一样，随着时间的推移还可以添加其他块。由于根数据库空间作为一个整体永远不会被删除，因此应明智地配置根数据库空间的初始块。</code></p>
+<blockquote>
+<p>wisely<br>英[ˈwaɪzli] 美[ˈwaɪzli]<br>adv.明智地;</p>
+</blockquote>
+<p>You normally do not keep databases in the root dbspace. Data should be spread across multiple disks, and to do that you should create multiple dbspaces and assign tables to specific dbspaces (or fragment a table across dbspaces).</p>
+<p><code>通常情况下，不会在root dbspace中保存数据库。数据应分布在多个磁盘上，为此应创建多个dbspace，并将表分配到特定的dbspace（或将表分片到不同的dbspace）。</code></p>
+<p>Initially, the physical log and at least three logical logs are located in the root dbspace. During the tuning phase, these are normally recreated in other dbspaces to take advantage of additional disk drives.</p>
+<p><code>最初，物理日志和至少三个逻辑日志位于root dbspace。在调整阶段，通常会在其他dbspace重新创建这些日志，以利用额外的磁盘驱动器。</code></p>
+<blockquote>
+<p>tuning<br>英[ˈtjuːnɪŋ]美[ˈtuːnɪŋ]<br>v.(给收音机、电视等)调谐，调频道;调整，调节(发动机);(为乐器)调音，校音;<br>n.【无线】调谐；收听；【乐】调音[弦];</p>
+</blockquote>
+<p><strong>Layout of a Root Chunk</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505092202432.png" alt="image-20250509220256358"></p>
+<p><strong>Notes:</strong></p>
+<p>After a complete disk initialization and before a system is tuned, the layout of the root chunk looks similar to the one pictured above.</p>
+<p><code>在完成磁盘初始化后和系统调整前，root chunk的布局与上图类似。</code></p>
+<p><strong>Reserved pages</strong></p>
+<p>The first twelve pages of the initial chunk in the root dbspace are the system <em>reserved</em> <em>pages</em>, which are used for system-tracking information and are updated during each checkpoint. Beginning with the third reserved page, the pages are organized into semi-redundant pairs, each of which stores a distinct type of structure, with the pages in each pair taking turns as the more current version.</p>
+<p><code>root dbspace中初始块的前十二页是系统保留页，用于系统跟踪信息，并在每次检查点时更新。从第三个保留页面开始，页面被组织成半冗余对，每个对存储一种不同类型的结构，每个对中的页面轮流作为最新版本。</code></p>
+<blockquote>
+<p>semi<br>英[ˈsemi]  美[ˈsemi]<br>n. 半决赛;半独立式住宅;</p>
+<p>redundant<br>英[rɪˈdʌndənt]  美[rɪˈdʌndənt]<br>adj.冗余的;多余的;不需要的;被裁减的;</p>
+</blockquote>
+<p><strong>Chunk free list</strong></p>
+<p>In every chunk, the page following the reserved pages is a chunk free-list page. A chunk free-list page contains information about free extents (groups of contiguous free pages) in the chunk.</p>
+<p><code>在每个chunk中，保留页之后的页面是chunk free list page。chunk free list page包含分chunk中空闲extents（由连续空闲页组成）的信息。</code></p>
+<p><strong>Tblspace tblspace</strong></p>
+<p>A tblspace tblspace is a collection of pages that describes the location and structure of all tblspaces in a particular dbspace. Most pages in the tblspace tblspace have the same format and contain the following major components:</p>
+<p><code>tblspace tblspace 是描述特定 dbspace 中所有 tblspace 的位置和结构的页面集合。tblspace tblspace 中的大多数页面格式相同，并包含以下主要组件：</code></p>
+<p><strong>•</strong> The number and location of extents</p>
+<p><code>extent的数量和位置</code></p>
+<p><strong>•</strong> Information about special columns (large objects and VARCHAR data)</p>
+<p><code>有关特殊列（大对象和 VARCHAR 数据）的信息</code></p>
+<p><strong>•</strong> An array of index key information</p>
+<p><code>索引键信息数组</code></p>
+<p><strong>•</strong> The database and table name</p>
+<p><code>数据库和表名</code></p>
+<p>You can find out where the tblspace tblspace extents are located by running <strong>oncheck -pe</strong> and looking for <strong>dbspace_name:’informix’.TBLSpace</strong>.</p>
+<p><code>运行oncheck -pe并查找dbspace_name:&#39;gbasedbt&#39;.TBLSpace，即可找出 tblspace tblspace extents 的位置。</code></p>
+<p>实测，oncheck -pe出来一大堆信息，看不懂，截选部分，rootdbs:’gbasedbt’.TBLSpace 有好几个，下边还有。再下边还有其他dbspace的信息</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">DBspace Usage Report: rootdbs             Owner: gbasedbt  Created: 04/17/2025</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"> Chunk Pathname                             Pagesize(k)  Size(p)  Used(p)  Free(p)</span><br><span class="line">     1 /opt/gbase/storage/rootdbs                     2    78848    13748    65100</span><br><span class="line"></span><br><span class="line"> Description                                                   Offset(p)  Size(p)</span><br><span class="line"> ------------------------------------------------------------- -------- --------</span><br><span class="line"> RESERVED PAGES                                                       0       12</span><br><span class="line"> CHUNK FREELIST PAGE                                                 12        1</span><br><span class="line"> rootdbs:<span class="string">&#x27;gbasedbt&#x27;</span>.TBLSpace                                         13      250</span><br><span class="line"> sysadmin:<span class="string">&#x27;gbasedbt&#x27;</span>.ix_ph_run_03                                   263        4</span><br><span class="line"> tmpsbspace:<span class="string">&#x27;gbasedbt&#x27;</span>.tmpsbspace_desc                              267        4</span><br><span class="line"> RESERVED PAGES                                                     271        2</span><br><span class="line"> RESERVED PAGES                                                     273        2</span><br><span class="line"> sysadmin:<span class="string">&#x27;gbasedbt&#x27;</span>.command_history                                275        8</span><br><span class="line"> sysadmin:<span class="string">&#x27;gbasedbt&#x27;</span>.ix_cmd_hist_02                                 283        4</span><br><span class="line"> sysadmin:<span class="string">&#x27;gbasedbt&#x27;</span>.mon_iohist                                     287        8</span><br><span class="line"> sysadmin:<span class="string">&#x27;gbasedbt&#x27;</span>.mon_config                                     295        8</span><br><span class="line"> sysadmin:<span class="string">&#x27;gbasedbt&#x27;</span>.mon_page_usage                                 303        8</span><br><span class="line"> sysadmin:<span class="string">&#x27;gbasedbt&#x27;</span>.mon_page_usage_ix1                             311        4</span><br><span class="line"> sysadmin:<span class="string">&#x27;gbasedbt&#x27;</span>.mon_page_usage_ix2                             315        4</span><br><span class="line"> sysadmin:<span class="string">&#x27;gbasedbt&#x27;</span>.mon_page_usage_ix1                             319        4</span><br><span class="line"> sysadmin:<span class="string">&#x27;gbasedbt&#x27;</span>.mon_page_usage                                 323        8</span><br><span class="line"> sysadmin:<span class="string">&#x27;gbasedbt&#x27;</span>.mon_page_usage_ix2                             331        4</span><br><span class="line"> sysadmin:<span class="string">&#x27;gbasedbt&#x27;</span>.mon_users                                      335        8</span><br><span class="line"> sysadmin:<span class="string">&#x27;gbasedbt&#x27;</span>.mon_table_profile                              343       16</span><br><span class="line"> sysadmin:<span class="string">&#x27;gbasedbt&#x27;</span>.mon_checkpoint                                 359        8</span><br><span class="line"> rootdbs:<span class="string">&#x27;gbasedbt&#x27;</span>.TBLSpace                                        367      200</span><br><span class="line"> sysadmin:<span class="string">&#x27;gbasedbt&#x27;</span>.idx_mon_ckpt_1                                 567        4</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p><strong>Database tblspace</strong></p>
+<p>The database tblspace is a list of all databases in the Informix Dynamic Server system, and includes the following components:</p>
+<p><code>database tblspace 是 IDS 系统中所有数据库的列表，包括以下组件：</code></p>
+<p><strong>•</strong> Database name</p>
+<p><code>数据库名</code></p>
+<p><strong>•</strong> Database owner</p>
+<p><code>数据库所有者</code></p>
+<p><strong>•</strong> Date and time the database was created</p>
+<p><code>创建数据库的日期和时间</code></p>
+<p><strong>•</strong> The partition number of the <strong>systables</strong> system catalog table for this database</p>
+<p><code>该数据库的 systables 系统表的 partition number</code></p>
+<p><strong>•</strong> Flags that show the logging mode for the database</p>
+<p><code>显示数据库日志记录模式的标志</code></p>
+<p>To find out where the database tblspace is physically located on your server, use the <strong>oncheck -pe</strong> command to generate an extent report and look for the extents allocated to <strong>sysmaster:’informix’.sysdatabases</strong>.</p>
+<p><code>要找出数据库 tblspace 在服务器上的物理位置，请使用 oncheck -pe 命令生成一份扩展报告，并查找分配给 sysmaster:&#39;gbasedbt&#39;.sysdatabases 的extents。</code></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sysmaster:<span class="string">&#x27;gbasedbt&#x27;</span>.sysdatabases                                27447        4</span><br></pre></td></tr></table></figure>
+
+<p>紫本180页：</p>
+<p>6.4.2.2 tablespace</p>
+<blockquote>
+<p>​		tablespace 是一个逻辑概念，指一个表或者索引所占用的空间。GBase 8t 用 tablespace 来描述一个表或者索引信息。一个 tablespace 是多个 extent 的逻辑集合，可以分布在不同的 dbspace 或者 chunk 上。在 GBase 8t 系统表中对表、索引采用 tablespace 进行描述。</p>
+<p>​		GBase 8t把分片表、索引的一个分片作为一个tablespace进行管理。每个表、索引在GBase8t 内部都有一个 partnum，在 GBase 8t 内部以该编号进行管理。例如在一个 GBase 8t 实例下有一个 database tblspace，包含所有的数据库 databases 的信息。database tblspace 的 partnum永远是 x00100002，位于 root dbspaces 上，也就是 sysmaster 数据中的 sysdatabases 表。</p>
+<p>​		我们可以通过查询 sysmaster 的 systabnames 表得到一个数据库实例下的所有表、索引的 tblspace 信息。</p>
+</blockquote>
+<p>所以，database tblspace有是系统表对应sysdatabases，而Tblspace tblspace让我以为有个系统表叫做Tblspace，但又不像 </p>
+<p><a target="_blank" rel="noopener" href="https://www.ibm.com/support/pages/what-tblspace-tblspace">What is TBLspace TBLspace?</a></p>
+<p>这篇文章提到：You are running IBM® Informix® Dynamic Server (IDS) database server and create a regular Dbspace. This Dbspace contains an internal table called TBLspace TBLspace. You cannot access the table using SQL commands.</p>
+<p>所以，有个内部表叫做TBLspace TBLspace，无法用SQL访问</p>
+<p>deepseek：</p>
+<ul>
+<li>它是Informix内核管理的<strong>元数据表</strong>（metadata table）</li>
+<li><strong>不开放SQL访问</strong>（如文档所述：*”You cannot access the table using SQL commands”*）</li>
+<li>仅通过底层存储引擎直接管理</li>
+</ul>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <footer class="article-footer">
+       
+    </footer>
+  </div>
+
+   
+    
+</article>
+
+    
+    <article
   id="post-IX9111/2"
   class="article article-type-post"
   itemscope
