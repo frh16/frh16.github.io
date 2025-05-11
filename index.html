@@ -172,7 +172,7 @@
 <p>​		GBase 8t把分片表、索引的一个分片作为一个tablespace进行管理。每个表、索引在GBase8t 内部都有一个 partnum，在 GBase 8t 内部以该编号进行管理。例如在一个 GBase 8t 实例下有一个 database tblspace，包含所有的数据库 databases 的信息。database tblspace 的 partnum永远是 x00100002，位于 root dbspaces 上，也就是 sysmaster 数据中的 sysdatabases 表。</p>
 <p>​		我们可以通过查询 sysmaster 的 systabnames 表得到一个数据库实例下的所有表、索引的 tblspace 信息。</p>
 </blockquote>
-<p>所以，database tblspace有是系统表对应sysdatabases，而Tblspace tblspace让我以为有个系统表叫做Tblspace，但又不像 </p>
+<p>所以，database tblspace有是系统表对应sysdatabases，而Tblspace tblspace看着应该是同样有个系统表，叫做Tblspace（描述特定 dbspace 中所有 tblspace），但又不知道在哪</p>
 <p><a target="_blank" rel="noopener" href="https://www.ibm.com/support/pages/what-tblspace-tblspace">What is TBLspace TBLspace?</a></p>
 <p>这篇文章提到：You are running IBM® Informix® Dynamic Server (IDS) database server and create a regular Dbspace. This Dbspace contains an internal table called TBLspace TBLspace. You cannot access the table using SQL commands.</p>
 <p>所以，有个内部表叫做TBLspace TBLspace，无法用SQL访问</p>
@@ -182,6 +182,224 @@
 <li><strong>不开放SQL访问</strong>（如文档所述：*”You cannot access the table using SQL commands”*）</li>
 <li>仅通过底层存储引擎直接管理</li>
 </ul>
+<p><strong>Layout of a Non-Root Chunk</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505101345909.png" alt="image-20250510134500787"></p>
+<p><strong>Notes:</strong></p>
+<p>The above slide shows the layout of all other chunks in the system except the root chunk. There are two slightly different types: those that are the first chunks in their respective dbspaces, and those that are subsequent to the first chunk.</p>
+<p><code>上面的幻灯片显示了系统中除root chunk之外的所有其他chunk的布局。有两种略有不同的类型：一种是各自dbspace中的第一个chunk，另一种是第一个chunk之后的chunk。</code></p>
+<p>第一个chunk就是后边提到的所谓<strong>Primary Chunk</strong></p>
+<p><strong>Reserved pages</strong></p>
+<p>The first two pages of any non-root chunk are reserved for nothing. They are not even initialized with a page header. The early Informix Dynamic Server designers thought they might need them someday, but so far, the most sensible suggested uses have been for <em>binary graffiti</em> and <em>credits</em>.</p>
+<p><code>在任何非根区块（non-root chunk）中，前两页是保留不用的。它们甚至没有被初始化为页面头（page header）。早期的 IDS 设计者认为将来可能会用到它们，但到目前为止，最合理的建议用途是用于“二进制涂鸦”（binary graffiti）和“致谢名单”（credits）。</code></p>
+<p><strong>Chunk free list</strong></p>
+<p>In every chunk, the page following the reserved pages is a chunk free-list page.</p>
+<p><code>在每个chunk中，紧跟在保留页之后的那一页是chunk的空闲页列表页（chunk free-list page）。</code></p>
+<p><strong>Tblspace tblspace</strong></p>
+<p>Every dbspace contains a tblspace tblspace, also called a partition table. The first extent of the tblspace tblspace is always allocated in the first chunk of the dbspace. Like any other tblspace, when additional extents are required, they are allocated wherever there is room in the dbspace.</p>
+<p><code>每个 dbspace 都包含一个 tblspace tblspace，也称为分区表(partition table)。tblspace tblspace 的第一个范围总是分配在 dbspace 的第一个chunk中。与其他 tblspace 一样，当需要额外的扩展时，它们会被分配到 dbspace 中有空间的地方。</code></p>
+<p>The initial and subsequent extent size for the partition table in non-root dbspaces is 50 pages.</p>
+<p><code>非root dbspace中分区表（partition table）的初始和后续extent大小为 50 页。</code></p>
+<p><strong>Overview of Root Reserved Pages</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505101359231.png" alt="image-20250510135946163"></p>
+<p><strong>Notes:</strong></p>
+<p>The first 12 pages of the root chunk are reserved for system information. Starting with page 2, the pages are grouped in pairs and are alternately updated.</p>
+<p><code>root chunk的前 12 页保留给系统信息。从第 2 页开始，页面成对分组，交替更新。</code></p>
+<p><strong>Page zero</strong></p>
+<p>Page 0 contains the Informix copyright and version information, the minimum page size, and the date and time of the system’s creation.</p>
+<p><code>第 0 页包含 Informix 版权和版本信息、最小页面大小以及系统创建的日期和时间。</code></p>
+<p><strong>Configuration page</strong></p>
+<p>Page 1 contains a copy of all the information stored in the system’s configuration file (<strong>$INFORMIXDIR&#x2F;etc&#x2F;$ONCONFIG</strong>) at the time the server was last brought online.</p>
+<p><code>第 1 页包含服务器上次联机时存储在系统配置文件（$INFORMIXDIR/etc/$ONCONFIG）中的所有信息的副本。</code></p>
+<p><strong>Checkpoint&#x2F;logical log pages</strong></p>
+<p>Page 2 and page 3 are the checkpoint&#x2F;logical log pages. The current checkpoint&#x2F;logical log page gives the location, date and time of the last checkpoint, and the location and current status of each of the logical logs.</p>
+<p><code>第 2 页和第 3 页是检查点/逻辑日志页面。当前检查点/逻辑日志页面显示上次检查点的位置、日期和时间，以及每个逻辑日志的位置和当前状态。</code></p>
+<p><strong>Dbspace pages</strong></p>
+<p>Page 4 and page 5 are the dbspace pages. Each entry on the current dbspace page tracks the status, location, data, and creation time of a dbspace.</p>
+<p><code>第 4 页和第 5 页是 dbspace 页面。当前dbspace页面的每个条目都会跟踪 dbspace 的状态、位置、数据和创建时间。</code></p>
+<p><strong>Primary chunk pages</strong></p>
+<p>Pages 6 and 7 are the reserved pages that contain information about each of the primary chunks on the server. For each chunk, the current primary-chunk page contains information about the pathname, size, offset, and status of the chunk.</p>
+<p><code>第 6 页和第 7 页是保留页，包含server上每个primary chunk的信息。对于每个chunk，当前的primary chunk page包含该chunk的路径名、大小、偏移量和状态信息。</code></p>
+<p><strong>Mirror chunk pages</strong></p>
+<p>Pages 8 and 9 are the mirror chunk pages. The structure of these pages are the same as the primary chunk pages</p>
+<p><code>第 8 页和第 9 页是mirror chunk页面。这些页面的结构与primary chunk pages相同</code></p>
+<p><strong>Archive pages</strong></p>
+<p>Pages 10 and 11 (0xa and 0xb) are the archive pages. These pages contains information on the most recent archives performed on the server.</p>
+<p><code>第 10 页和第 11 页（0xa 和 0xb）是存档页面。这些页面包含在服务器上进行的最新存档信息。</code></p>
+<p><strong>The Copyright Page</strong></p>
+<p>oncheck -pr，下边还有很多内容，与本节无关，不贴出</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">Validating GBase Database Server reserved pages</span><br><span class="line"></span><br><span class="line">    Validating PAGE_PZERO...</span><br><span class="line"></span><br><span class="line">    Identity                       GBase Database Server Co</span><br><span class="line">                                   pyright 2001, 2021  Gene</span><br><span class="line">                                   ral Data Corporation</span><br><span class="line">    Database system state          0</span><br><span class="line">    Database system flags          0x3</span><br><span class="line">    Page Size                      2048 (b)</span><br><span class="line">    Date/Time created              04/17/2025 08:44:48</span><br><span class="line">    Version number of creator      32</span><br><span class="line">    Last modified time stamp       0</span><br><span class="line">    UID of rootdbs creator         1001</span><br><span class="line">    Index Page Logging             OFF</span><br><span class="line">    HA Disk Owner                  &lt;null&gt;</span><br><span class="line">    ……</span><br></pre></td></tr></table></figure>
+
+<p><strong>Notes:</strong></p>
+<p>The slide above shows a sample <strong>oncheck -pr</strong> output for the copyright page. </p>
+<p><code>上面的幻灯片展示了版权页的oncheck -pr输出示例。</code></p>
+<p>One important use of this page is the identification of the version of the Informix Dynamic Server system. The current version is listed here under <strong>Version number of creator</strong>. If the version number is earlier than the <strong>oninit</strong> version, the database server performs any upgrade steps required to move the Informix Dynamic Server system to the new version. </p>
+<p><code>本页的一个重要用途是识别 IDS 系统的版本。当前版本列于此处的 Version number of creator 下。如果版本号早于 oninit 版本， database server 将执行所有必要的升级步骤，以将 Informix Dynamic Server 系统迁移到新版本。</code></p>
+<p>Upgrading the server is not always required; it is only necessary when the disk architecture or the structure of tables in <strong>sysmaster</strong> or <strong>sysutils</strong> has changed.</p>
+<p><code>并不总是需要升级 server；只有在磁盘架构或 sysmaster 或 sysutils 中的表格结构发生变化时才需要升级。</code></p>
+<p><strong>Hint</strong></p>
+<p>Run the command:</p>
+<p>​		oncheck -pP 1 0</p>
+<p>and compare that output to the report generated by <strong>oncheck -pr</strong>.</p>
+<p>1001 -&gt; 3e9    20 - &gt; 32</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">[root@frh gbase]<span class="comment"># oncheck -pP 1 0</span></span><br><span class="line">addr             stamp    chksum nslots flag <span class="built_in">type</span>         frptr frcnt next     prev</span><br><span class="line">1:0              157435   66f8   3      1800 ROOTRSV      304   1728  0        0</span><br><span class="line">        slot ptr   len   flg</span><br><span class="line">        1    24    252   0</span><br><span class="line">        3    276   28    0</span><br><span class="line">slot   1:</span><br><span class="line">    0: 47 42 61 73 65 20 44 61 74 61 62 61 73 65 20 53   GBase Database S</span><br><span class="line">   16: 65 72 76 65 72 20 43 6f 70 79 72 69 67 68 74 20   erver Copyright</span><br><span class="line">   32: 32 30 30 31 2c 20 32 30 32 31 20 20 47 65 6e 65   2001, 2021  Gene</span><br><span class="line">   48: 72 61 6c 20 44 61 74 61 20 43 6f 72 70 6f 72 61   ral Data Corpora</span><br><span class="line">   64: 74 69 6f 6e  0  0  0  0  0  0  0  0  0  0  0  0   tion............</span><br><span class="line">   80:  0  0  3  0  0  8  0  0 f0 21  1 68 20  0  0  0   ........p!.h ...</span><br><span class="line">   96:  0  0  0  0 e9  3  0  0 31 32 31 34  1  0  0  0   ....i...1214....</span><br><span class="line">  112:  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0   ................</span><br><span class="line">  128:  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0   ................</span><br><span class="line">  144:  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0   ................</span><br><span class="line">  160:  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0   ................</span><br><span class="line">  176:  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0   ................</span><br><span class="line">  192:  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0   ................</span><br><span class="line">  208:  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0   ................</span><br><span class="line">  224:  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0   ................</span><br><span class="line">  240:  0  0  0  0  0  0  0  0  0  0  0  0               ................</span><br><span class="line">slot   3:</span><br><span class="line">    0:  3  0 10  0 3b 6b  0  0  1  0  0  0  0  0  0  0   ....;k..........</span><br><span class="line">   16:  c 46 22 30 34 2d 32 30 32 35  0  0               .F<span class="string">&quot;04-2025......</span></span><br><span class="line"><span class="string"></span></span><br></pre></td></tr></table></figure>
+
+
+
+<p><strong>The Configuration Page</strong></p>
+<p>oncheck -pr截取</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">    Validating PAGE_CONFIG...</span><br><span class="line"></span><br><span class="line">    ROOTNAME                       rootdbs</span><br><span class="line">    ROOTPATH                       /opt/gbase/storage/rootdbs</span><br><span class="line">    ROOTOFFSET                     0 (k)</span><br><span class="line">    ROOTSIZE                       157696 (k)</span><br><span class="line">    MIRROR                         0</span><br><span class="line">    MIRRORPATH                     /opt/gbase/tmp/demo_on.root_mirror</span><br><span class="line">    MIRROROFFSET                   0 (k)</span><br><span class="line">    DBSERVERNAME                   ol_gbasedbt1210_1</span><br><span class="line">    SERVERNUM                      0</span><br><span class="line">    MSGPATH                        /opt/gbase/ol_gbasedbt1210_1.<span class="built_in">log</span></span><br><span class="line">    TAPEDEV                        /dev/tapedev</span><br><span class="line">    TAPESIZE                       0 (k)</span><br><span class="line">    TAPEBLK                        32 (k)</span><br><span class="line">    LTAPEDEV                       /dev/null</span><br><span class="line">    LTAPESIZE                      0 (k)</span><br><span class="line">    LTAPEBLK                       32 (k)</span><br><span class="line">    PHYSFILE                       71972 (k)</span><br><span class="line">    PHYSBUFF                       512 (k)</span><br><span class="line">    LOGFILES                       19</span><br><span class="line">    LOGSIZE                        6144 (k)</span><br><span class="line">    LOGBUFF                        256 (k)</span><br><span class="line">    DYNAMIC_LOGS                   2</span><br><span class="line">    LTXHWM                         70 (%)</span><br><span class="line">    LTXEHWM                        80 (%)</span><br><span class="line">……</span><br></pre></td></tr></table></figure>
+
+<p><strong>Notes:</strong></p>
+<p>The configuration page contains values for all <em>documented</em> parameters in the configuration file ($ONCONFIG). In other words, it is not simply a copy of whatever happens to be in the configuration file; adding additional parameters to the configuration file does not add anything new to the configuration page.</p>
+<p><code>configuration page 包含配置文件 ($ONCONFIG) 中所有已记录参数的值。换句话说，它并非配置文件中内容的简单复制；在配置文件中添加其他参数并不会给 configuration page 添加任何新内容。</code></p>
+<p><strong>Seen and unseen</strong></p>
+<p>The <strong>oncheck -pr</strong> output above shows an example of the contents of the configuration page. Note that on some platforms, many legitimate parameters in the configuration file do not show up in this report, such as NUMCPUVPS, STACKSIZE, and SHMTOTAL.</p>
+<p><code>上面的 oncheck -pr 输出显示了 configuration page 内容的示例。请注意，在某些平台上，configuration page 中的许多合法参数不会显示在此报告中，例如 NUMCPUVPS、STACKSIZE 和 SHMTOTAL。</code></p>
+<blockquote>
+<p>legitimate 合法的 英[lɪˈdʒɪtɪmət]美[lɪˈdʒɪtɪmət]</p>
+</blockquote>
+<p>The <strong>onstat -c</strong> command does not use the information from these pages. This command reads the configuration file instead of the reserved page.</p>
+<p><code>onstat -c 命令不使用这些页面中的信息。此命令读取配置文件，而不是保留页。</code></p>
+<p><strong>Hint</strong></p>
+<p>Run the command:</p>
+<p>​		oncheck -pP 1 1</p>
+<p>and compare that output to the report generated by <strong>oncheck -pr</strong>. Notice that <strong>oncheck -pP</strong>, being a more general page-displaying tool, reveals parameters on the configuration page not displayed by <strong>oncheck -pr</strong>.</p>
+<p><code>请注意，oncheck -pP 是一个更通用的页面显示工具，它会显示 oncheck -pr 未显示的配置页面上的参数。</code></p>
+<blockquote>
+<p>reveals<br>英[rɪˈviːlz] 美[rɪˈviːlz]<br>v.揭示;显示;透露;展示;露出;显出;<br>n.揭示（reveal 的复数）;</p>
+</blockquote>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">slot   1:</span><br><span class="line">    0: 52 4f 4f 54 4e 41 4d 45 20 72 6f 6f 74 64 62 73   ROOTNAME rootdbs</span><br><span class="line">   16:  0                                                ................</span><br><span class="line">slot   2:</span><br><span class="line">    0: 52 4f 4f 54 50 41 54 48 20 2f 6f 70 74 2f 67 62   ROOTPATH /opt/gb</span><br><span class="line">   16: 61 73 65 2f 73 74 6f 72 61 67 65 2f 72 6f 6f 74   ase/storage/root</span><br><span class="line">   32: 64 62 73  0                                       dbs.............</span><br><span class="line">slot   3:</span><br><span class="line">    0: 52 4f 4f 54 4f 46 46 53 45 54 20 30  0            ROOTOFFSET 0....</span><br><span class="line">slot   4:</span><br><span class="line">    0: 52 4f 4f 54 53 49 5a 45 20 31 35 37 36 39 36  0   ROOTSIZE 157696.</span><br><span class="line">slot   5:</span><br><span class="line">    0: 4d 49 52 52 4f 52 20 30  0                        MIRROR 0........</span><br></pre></td></tr></table></figure>
+
+<p>上面是 oncheck -pP 1 1 截取部分</p>
+<p><strong>The Checkpoint&#x2F;Logical Log Page</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">Validating PAGE_1CKPT &amp; PAGE_2CKPT...</span><br><span class="line">      Using check point page PAGE_2CKPT.</span><br><span class="line"></span><br><span class="line">Time stamp of checkpoint       0x7f7e6b</span><br><span class="line">Time of checkpoint             05/10/2025 05:17:37</span><br><span class="line">Physical <span class="built_in">log</span> begin address     2:53</span><br><span class="line">Physical <span class="built_in">log</span> size              35986 (p)</span><br><span class="line">Physical <span class="built_in">log</span> position at Ckpt  30148</span><br><span class="line">Logical <span class="built_in">log</span> unique identifier  148</span><br><span class="line">Logical <span class="built_in">log</span> position at Ckpt   0xc510c0 (Page 3153, byte 192)</span><br><span class="line">Checkpoint Interval            98</span><br><span class="line">DBspace descriptor page        1:4</span><br><span class="line">Chunk descriptor page          1:7</span><br><span class="line">Mirror chunk descriptor page   1:8</span><br><span class="line"></span><br><span class="line">Log file number                14</span><br><span class="line">Unique identifier              146</span><br><span class="line">Log file flags                 0x5        Log file <span class="keyword">in</span> use</span><br><span class="line">&amp;                                         Log file has been backed up</span><br><span class="line">Physical location              3:29483</span><br><span class="line">Log size                       3270 (p)</span><br><span class="line">Number pages used              3270</span><br><span class="line">Date/Time file filled          04/17/2025 09:10:15</span><br><span class="line">Time stamp                     0x578dde</span><br><span class="line"><span class="comment"># 下边把剩余的所有 Log file number 都列出来了</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>Notes:</strong></p>
+<p>The current checkpoint&#x2F;logical log page gives the location, date, and time of the last checkpoint, and the location and current status of the logical logs.</p>
+<p><code>当前 checkpoint/logical log page 给出了最后一个检查点的位置、日期和时间，以及逻辑日志的位置和当前状态。</code></p>
+<p>Beginning with page 2, the reserved pages are paired. However, only one page out of the pair is current. So when we refer to the primary chunk reserved page, dbspace reserved page, or the checkpoint&#x2F;logical log reserved page, we are talking about the current page of the pair. The current page can be easily found by comparing the timestamps, which is the method used by <strong>oncheck -pr</strong> when deciding which of the pages to display. Notice that at the top of each reserved page output, <strong>oncheck</strong> indicates which page of the pair it has chosen to display.</p>
+<p><code>从第 2 页开始，保留页是成对的。但是，每对页中只有一个是当前页。因此，当我们提到 primary chunk 保留页、dbspace 保留页或检查点/逻辑日志保留页时，我们指的是该对中的当前页。可以通过比较时间戳轻松找到当前页，这也是 oncheck -pr 在决定显示哪些页时使用的方法。请注意，在每个保留页输出的顶部，oncheck 都会指示它选择显示的页对中的哪个页。（说的应该是“Using check point page PAGE_2CKPT.”）</code></p>
+<p><strong>Hint</strong></p>
+<p>Run the commands:</p>
+<p>​		oncheck -pP 1 2</p>
+<p>and</p>
+<p>​		oncheck -pP 1 3</p>
+<p>First, determine which of the pages is more current by looking at the timestamps. Then compare your observation with the <strong>oncheck -pr</strong> report.</p>
+<p>可能意思是看2和3，哪个stamp数字更大吧</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">oncheck -pP 1 2</span><br><span class="line"></span><br><span class="line">addr             stamp    chksum nslots flag <span class="built_in">type</span>         frptr frcnt next     prev</span><br><span class="line">1:2              8343790  5092   20     1800 ROOTRSV      680   1284  0        0</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">oncheck -pP 1 3</span><br><span class="line"></span><br><span class="line">addr             stamp    chksum nslots flag <span class="built_in">type</span>         frptr frcnt next     prev</span><br><span class="line">1:3              8355443  7e0e   20     1800 ROOTRSV      680   1284  0        0</span><br></pre></td></tr></table></figure>
+
+
+
+<p><strong>A pair of nearly identical pages</strong></p>
+<p>You might still be confused about how the two checkpoint&#x2F;logical log pages are split. It is <strong>not</strong> the case that one page contains checkpoint information while the other page contains logical log information. There is checkpoint and logical log information on both pages, as shown here:</p>
+<p><code>您可能仍然对两个 checkpoint/logical log page 的划分方式感到困惑。一个页面包含检查点信息，而另一个页面包含逻辑日志信息，这种情况并非如此。两个页面上都包含检查点和逻辑日志信息，如下所示：</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505102139970.png" alt="image-20250510213923811"></p>
+<p>The difference between the two pages is that one contains up-to-date information, and the other contains information that is one iteration out of date. This is true for all the reserved-page pairs.</p>
+<p><code>这两个页面的区别在于，一个页面包含最新信息，而另一个页面包含的信息已经过期一个迭代。所有保留页对都是如此。</code></p>
+<p>图上，黑横线是page分割线，黑线下边紧邻是页头，上边紧邻右侧是页尾</p>
+<p><strong>The checkpoint structure vs. checkpoint records</strong></p>
+<p>It is important to distinguish between the checkpoint <em>structure</em>, found on the checkpoint&#x2F;logical log page, and checkpoint <em>records</em>.</p>
+<p><code>必须区分检查点/逻辑日志页面上的 checkpoint structure 和 checkpoint records。</code></p>
+<p>Checkpoint records are written to the logical logs. One of the last steps taken by IDS during a checkpoint is to write a checkpoint record to the current logical log file.</p>
+<p><code>Checkpoint records 写入逻辑日志。在检查点过程中，IDS 采取的最后一个步骤是向当前逻辑日志文件写入检查点记录。</code></p>
+<p>At any given time, there can be many checkpoint records scattered throughout the logical logs on disk. But of those records, only the most recently written record is important to fast recovery. The checkpoint structure*,* on the checkpoint&#x2F;logical log page, contains information that, in the event of a system shutdown or crash, guides fast recovery to this most-important, most-recent checkpoint record.</p>
+<p><code>在任意时刻，磁盘上的逻辑日志中可能分布着许多检查点（checkpoint）记录。但在这些记录中，只有最近写入的那条记录对快速恢复最为关键。位于检查点/逻辑日志页上的检查点结构（checkpoint structure）包含了相关信息，在系统关闭或崩溃的情况下，这些信息会引导快速恢复过程定位到这一条最重要、最新的检查点记录。。</code></p>
+<blockquote>
+<p>scatter 分散 英[ˈskætə(r)] 美[ˈskætər]</p>
+<p>throughout 遍及 英[θruːˈaʊt] 美[θruːˈaʊt]</p>
+</blockquote>
+<p><strong>The Checkpoint Structure</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">Validating PAGE_1CKPT &amp; PAGE_2CKPT...</span><br><span class="line">      Using check point page PAGE_2CKPT.</span><br><span class="line"></span><br><span class="line">Time stamp of checkpoint       0x7f7e6b</span><br><span class="line">Time of checkpoint             05/10/2025 05:17:37</span><br><span class="line">Physical <span class="built_in">log</span> begin address     2:53</span><br><span class="line">Physical <span class="built_in">log</span> size              35986 (p)</span><br><span class="line">Physical <span class="built_in">log</span> position at Ckpt  30148</span><br><span class="line">Logical <span class="built_in">log</span> unique identifier  148</span><br><span class="line">Logical <span class="built_in">log</span> position at Ckpt   0xc510c0 (Page 3153, byte 192)</span><br><span class="line">Checkpoint Interval            98</span><br><span class="line">DBspace descriptor page        1:4</span><br><span class="line">Chunk descriptor page          1:7</span><br><span class="line">Mirror chunk descriptor page   1:8</span><br></pre></td></tr></table></figure>
+
+<p><strong>Notes:</strong></p>
+<p>What follows is an item-by-item analysis of the checkpoint structure information displayed by <strong>oncheck -pr</strong>. Indicated along with an explanation of each element is its notation (hex or decimal).</p>
+<p><code>下面逐项分析 oncheck -pr 显示的检查点结构信息。每个元素的表示方式（十六进制或十进制）也会一并标出，并附带解释。</code></p>
+<p><strong>Time stamp of checkpoint</strong> (hex) – The global system timestamp that is current during the last moments of the checkpoint. Notice that the timestamp on the current checkpoint&#x2F;logical log page is often just one or two ticks higher than the timestamp value stored in the checkpoint structure.</p>
+<p><code>检查点最后时刻的全局系统时间戳。请注意，当前 checkpoint/logical log page 上的时间戳往往只比存储在 checkpoint structure 中的时间戳值高一两个刻度。</code></p>
+<p>checkpoint&#x2F;logical log page 上的时间戳，指的是页尾的时间戳吧，也就是 oncheck -pP 1 3 的 stamp 值 8355443（0x7F7E73），比0x7f7e6b大一点。</p>
+<p><strong>Time of checkpoint</strong> – The true date and time of the last checkpoint, based on the UNIX host’s <strong>localtime</strong> function.</p>
+<p><code>上次检查点的真实日期和时间，基于 UNIX 主机的 localtime 函数。</code></p>
+<p><strong>Physical log begin address</strong> (decimal:decimal) – This is the location (chunk number and page offset) of the first page in the physical log. You can verify this information using <strong>oncheck -pe</strong>.</p>
+<p><code>这是物理日志中第一页的位置（chunk编号和页偏移量）。您可以使用 oncheck -pe 验证此信息。</code></p>
+<p>oncheck -pe截选，可以看到，chunk 2，offset 53</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">DBspace Usage Report: plog                Owner: gbasedbt  Created: 04/17/2025</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"> Chunk Pathname                             Pagesize(k)  Size(p)  Used(p)  Free(p)</span><br><span class="line">     2 /opt/gbase/storage/ol_gbasedbt1210_1_plog_p_1            2    36045    36039        6</span><br><span class="line"></span><br><span class="line"> Description                                                   Offset(p)  Size(p)</span><br><span class="line"> ------------------------------------------------------------- -------- --------</span><br><span class="line"> RESERVED PAGES                                                       0        2</span><br><span class="line"> CHUNK FREELIST PAGE                                                  2        1</span><br><span class="line"> plog:<span class="string">&#x27;gbasedbt&#x27;</span>.TBLSpace                                             3       50</span><br><span class="line"> PHYSICAL LOG                                                        53    35986</span><br><span class="line"> FREE                                                             36039        6</span><br><span class="line"></span><br><span class="line"> Total Used:    36039</span><br><span class="line"> Total Free:        6</span><br></pre></td></tr></table></figure>
+
+<p><strong>Physical log size</strong> (decimal) – The size, in pages, of the physical log.</p>
+<p><code>物理日志的大小（以页为单位）。</code></p>
+<p><strong>Physical log position at Ckpt</strong> (decimal) – This is the page offset within the physical log that was current at the time of the last checkpoint, expressed as a number of pages offset from the physical log begin address. The first phase of fast recovery, physical recovery, starts with the page following the one indicated here.</p>
+<p><code>这是上一次检查点时物理日志中的页面偏移量，表示为从物理日志起始地址偏移的页数。快速恢复的第一阶段，即物理恢复，从此处所示页面之后的页面开始。</code></p>
+<p><strong>Logical log unique identifier</strong> (decimal) – This is the unique ID of the logical log that contains the most recently written checkpoint record.</p>
+<p><code>这是包含最近写入的 checkpoint record 的逻辑日志的唯一 ID。</code></p>
+<p><strong>Logical log position at Ckpt</strong> (hex) – This is the position within the logical log indicated by the previous element in the checkpoint structure (logical log unique identifier) where the most-recently-written checkpoint record can actually be found. This is also known as the <em>logpos</em>.</p>
+<p><code>这是 checkpoint structure 中前一个元素 logical log unique identifier(就上边那个) 所指示的逻辑日志中的位置，在该位置可实际找到最近写入的 checkpoint record。这也称为 logpos。</code></p>
+<p><strong>Dbspace descriptor page</strong> (decimal:decimal) – This is the location (chunk number and offset) of the dbspace reserved page that was current at the time of the checkpoint. Of course, the timestamps on the two dbspace pages could also be compared to determine which one was more up-to-date.</p>
+<p><code>这是检查点时最新的 dbspace 保留页面的位置（chunk编号和偏移量）。当然，也可以通过比较两个 dbspace 页面上的时间戳来确定哪个页面更新。</code></p>
+<p><strong>Chunk descriptor page</strong> (decimal:decimal) – This is the location (chunk number and offset) of the primary chunk reserved page that was current at the time of the last checkpoint. The same redundancy involved with the previous element of the checkpoint structure applies to this one.</p>
+<p><code>这是上次检查点时当前的 primary chunk 保留页的位置（chunk编号和偏移量）。检查点结构的前一个元素所涉及的冗余同样适用于这个元素。</code></p>
+<blockquote>
+<p>redundancy 冗余 英[rɪˈdʌndənsi] 美[rɪˈdʌndənsi]</p>
+</blockquote>
+<p><strong>Mirror chunk descriptor page</strong> (decimal:decimal) – This is the location (chunk number and offset) of the mirror chunk reserved page that current at the time of the last checkpoint.</p>
+<p><code>这是上次检查点时当前 mirror chunk 保留页的位置（chunk编号和偏移量）。</code></p>
+<p><strong>The Logical Log File Structure</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">……</span><br><span class="line">Log file number                14</span><br><span class="line">   Unique identifier              146</span><br><span class="line">   Log file flags                 0x5        Log file <span class="keyword">in</span> use</span><br><span class="line">   &amp;                                         Log file has been backed up</span><br><span class="line">   Physical location              3:29483</span><br><span class="line">   Log size                       3270 (p)</span><br><span class="line">   Number pages used              3270</span><br><span class="line">   Date/Time file filled          04/17/2025 09:10:15</span><br><span class="line">   Time stamp                     0x578dde</span><br></pre></td></tr></table></figure>
+
+<p><strong>Notes:</strong></p>
+<p>For every logical log file defined in the system, there is one log file structure in the checkpoint&#x2F;logical log reserved page.</p>
+<p><code>对于系统中定义的每个逻辑日志文件，在 checkpoint/logical log 预留页面中有一个日志文件结构。</code></p>
+<p>注意，这是最后一次检查点时的逻辑日志文件结构，不是当前的，onstat -l 时，flags 对不上的</p>
+<p><strong>Log file number</strong> (decimal) – The number of the log file in the Informix Dynamic Server system. Logical log files are generally used in the order of their log file number.</p>
+<p><code>IDS 系统中日志文件的编号。逻辑日志文件通常按其日志文件编号的顺序使用。</code></p>
+<p><strong>Unique identifier</strong> (decimal) – This integer is always associated with the particular set of logical log records currently stored in this log file. A zero value means the log file is free.</p>
+<p><code>该整数总是与当前存储在该日志文件中的特定逻辑日志记录集合相关联。零值表示日志文件空闲。</code></p>
+<p>看不懂说的什么，onstat -l 可以看到这两个数，在同一行</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[root@frh gbase]<span class="comment"># onstat -l</span></span><br><span class="line">……</span><br><span class="line">address          number   flags    uniqid   begin                size     used    %used</span><br><span class="line">4559fa60         14       U-B----  146      3:29483              3270     3270   100.00</span><br><span class="line">4559fac8         13       U-B----  147      3:26213              3270     3270   100.00</span><br><span class="line">……</span><br></pre></td></tr></table></figure>
+
+<p><strong>Log containing last checkpoint</strong> (decimal) – This indicates the logical log page number and byte offset into that log where the last checkpoint record was recorded.</p>
+<p><code>这表示记录最后一次检查点记录的逻辑日志页码和字节偏移量。</code></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">Log file number                10</span><br><span class="line">Unique identifier              150</span><br><span class="line">Log contains last checkpoint:  Page 1260, byte 192</span><br><span class="line">Log file flags                 0x3        Log file <span class="keyword">in</span> use</span><br><span class="line">&amp;                                         Current <span class="built_in">log</span> file</span><br><span class="line">Physical location              3:16403</span><br><span class="line">Log size                       3270 (p)</span><br><span class="line">Number pages used              1261</span><br><span class="line">Date/Time file filled          04/17/2025 09:12:24</span><br><span class="line">Time stamp                     0x6171d2</span><br><span class="line"></span><br><span class="line">address          number   flags    uniqid   begin                size     used    %used</span><br><span class="line">4559fa60         14       U-B----  146      3:29483              3270     3270   100.00</span><br><span class="line">4559fac8         13       U-B----  147      3:26213              3270     3270   100.00</span><br><span class="line">4559fb30         12       U-B----  148      3:22943              3270     3270   100.00</span><br><span class="line">4559fb98         11       U-B----  149      3:19673              3270     3270   100.00</span><br><span class="line">4559fc00         10       U-B---L  150      3:16403              3270     3270   100.00</span><br><span class="line">4559fc68         9        U-B----  151      3:13133              3270     3270   100.00</span><br></pre></td></tr></table></figure>
+
+<p>必须有L的逻辑日志文件，才有 Log contains last checkpoint</p>
+<p><strong>Log file flags</strong> (hex) – With the miracle of the logical OR, up to five different logical log flags, like the page flags described in the previous chapter, can be packed into this one short integer. The individual flag values are:</p>
+<p><code>利用逻辑或的神奇功能，可以将最多五个不同的逻辑日志标志（如上一章所述的页面标志）打包到这个短整数中。各个标志值如下</code></p>
+<p>0x01 Log file in use，U</p>
+<p>0x02 Current log file，L</p>
+<p>0x04 Backed up，B</p>
+<p>0x08 Newly added (archive required)</p>
+<p>0x10 Log has been written to an archive tape</p>
+<p>0x20 Log is a temporary log file</p>
+<p>Note that <strong>oncheck -pr</strong> is nice enough to print an English translation of all flag values present in the one value shown.</p>
+<p><code>请注意，oncheck -pr 非常友好，会在显示的一个值中打印所有标志值的英文翻译。(数字右边就是)</code></p>
+<p><strong>Physical location</strong> (decimal:decimal) – This is the physical location (chunk number and offset) of this log file’s first page.</p>
+<p><code>这是日志文件第一页的物理位置（chunk编号和偏移量）。就是当前逻辑日志文件第一页在chunk的物理位置</code></p>
+<p><strong>Log size</strong> (decimal) – This indicates the size of this log file, in pages.</p>
+<p><code>表示该日志文件的大小（以页为单位）。</code></p>
+<p><strong>Number pages used</strong> (decimal) – This element of the log file structure is fairly self-explanatory, though not always very accurate, being updated only during a checkpoint along with the rest of the reserved page information (when wrong, it is low). Informix Dynamic Server’s recovery mechanisms do not rely on this value at all.</p>
+<p><code> 日志文件结构中的这一元素不言自明，但并不总是非常准确，只有在检查点期间才会与其他保留页信息一起更新（错误时，它的值较低）。IDS 的恢复机制完全不依赖这个值。</code></p>
+<p>不懂，先不管</p>
+<blockquote>
+<p>fairly 相当地 英[ˈfeəli] 美[ˈferli]</p>
+<p>self-explanatory 一目了然的 英[ˌself ɪkˈsplænətri] 美[ˌself ɪkˈsplænətɔːri]</p>
+</blockquote>
+<p><strong>Date&#x2F;time file filled</strong> – This is the date and time, based on the UNIX host’s <strong>localtime</strong>function, when this log file was filled. <strong>12&#x2F;31&#x2F;69 16:00</strong> indicates this element’s value is 0, which means the log file is either free or still in use.</p>
+<p><code>根据 UNIX 主机的 localtime 函数，这是日志文件被写满时的日期和时间。&quot;-&quot; 表示此元素的值为 0，这意味着日志文件已空闲或仍在使用中。</code></p>
+<p>原文的12&#x2F;31&#x2F;69 16:00不知道是什么，明明显示的是个”-“</p>
+<p><strong>Time stamp</strong> (decimal) – This is the value of the global system timestamp when this log file was completed (the log file does not have to be filled to capacity to get a timestamp). A 0 here indicates a log file that is either free, or still in use.</p>
+<p><code>这是该日志文件完成时的全局系统时间戳值（日志文件不必写满就可以获得时间戳）。此处的 0 表示日志文件空闲或仍在使用中。</code></p>
+<p>说的是 onmode -l 情况吧</p>
+<p><strong>Log Unique Identifier Versus Log File Number</strong></p>
+<blockquote>
+<p>versus 英[ˈvɜːsəs] 美[ˈvɜːrsəs]<br>prep.(表示两队或双方对阵)对，诉，对抗;(比较两种不同想法、选择等)与…相对，与…相比;</p>
+</blockquote>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505112026087.png" alt="image-20250511202616915"></p>
+<p><strong>Notes:</strong></p>
+<p>A logical log file is an area on disk. It is a chunk extent, LOGSIZE kilobytes large, to which log records are written as they are generated. Each log file has a permanent log file number. In the example above, the log file number is 1 for the first log file, 2 for the second log, and 3 for the third log.</p>
+<p><code>逻辑日志文件是磁盘上的一个区域。它是一个chunk extent，LOGSIZE 为 KB，日志记录生成后会被写入其中。每个日志文件都有一个永久的日志文件编号。在上例中，第一个日志文件的日志文件编号为 1，第二个日志文件的日志文件编号为 2，第三个日志文件的日志文件编号为 3。</code></p>
+<p>In addition, each log file has a unique identifier, which you can think of as a method to uniquely tag the logical log records inside of the log. When a logical log is backed up, it carries its unique identifier with it. The unique identifiers for the logs on disk are incremented, ready for new transaction records.</p>
+<p><code>此外，每个日志文件都有一个唯一标识符，可以将其视为唯一标记日志内逻辑日志记录的方法。备份逻辑日志时，日志会携带这个唯一标识符。磁盘上日志的唯一标识符会递增，为新的事务记录做好准备。</code></p>
+<p>前半段看不懂，感觉按它意思，唯一标识日志里的逻辑日志记录，备份以后唯一标识递增（变了），而此时日志里内容没变吧，也就是内容没变的情况下，却不能唯一标识了，意思里面内容没用了呗，等新的事物记录写入</p>
+<p>In the example above, the newly initialized Informix Dynamic Server system assigns the first log a unique ID of 1, the second log a unique ID of 2, and the third log a unique ID of 3. When these logs are full and you back them up to tape, the unique identifiers for the three logs are changed to 4, 5, and 6. After filling them a second time and backing them up, the unique identifiers are changed to 7, 8, and 9.</p>
+<p><code>在上面的示例中，新初始化的 IDS 系统为第一个日志分配了唯一标识符 1，为第二个日志分配了标识符 2，为第三个日志分配了标识符 3。当这些日志被写满并备份到磁带后，这三个日志的唯一标识符会被更改为 4、5 和 6。在第二次写满并备份之后，唯一标识符会更改为 7、8 和 9。</code></p>
  
       <!-- reward -->
       
