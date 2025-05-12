@@ -400,6 +400,58 @@
 <p>前半段看不懂，感觉按它意思，唯一标识日志里的逻辑日志记录，备份以后唯一标识递增（变了），而此时日志里内容没变吧，也就是内容没变的情况下，却不能唯一标识了，意思里面内容没用了呗，等新的事物记录写入</p>
 <p>In the example above, the newly initialized Informix Dynamic Server system assigns the first log a unique ID of 1, the second log a unique ID of 2, and the third log a unique ID of 3. When these logs are full and you back them up to tape, the unique identifiers for the three logs are changed to 4, 5, and 6. After filling them a second time and backing them up, the unique identifiers are changed to 7, 8, and 9.</p>
 <p><code>在上面的示例中，新初始化的 IDS 系统为第一个日志分配了唯一标识符 1，为第二个日志分配了标识符 2，为第三个日志分配了标识符 3。当这些日志被写满并备份到磁带后，这三个日志的唯一标识符会被更改为 4、5 和 6。在第二次写满并备份之后，唯一标识符会更改为 7、8 和 9。</code></p>
+<p><strong>The Dbspace Page</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">Validating PAGE_1DBSP &amp; PAGE_2DBSP...</span><br><span class="line">      Using DBspace page PAGE_2DBSP.</span><br><span class="line"></span><br><span class="line">DBspace number                 1</span><br><span class="line">DBspace name                   rootdbs</span><br><span class="line">Flags                          0x40001    No mirror chunks</span><br><span class="line">Number of chunks               1</span><br><span class="line">First chunk                    1</span><br><span class="line">Date/Time created              04/17/2025 08:44:48</span><br><span class="line">Partition table page number    14</span><br><span class="line">Pagesize (k)                   2</span><br><span class="line">Logical Log Unique Id          0</span><br><span class="line">Logical Log Position           0x0</span><br><span class="line">Oldest Logical Log Unique Id   155</span><br><span class="line">Last Logical Log Unique Id     0</span><br><span class="line">Expand Size (Chunk Create)     50.0%</span><br><span class="line">Expand size (Chunk Extend)     10.0%</span><br><span class="line">DBspace archive status</span><br><span class="line"></span><br><span class="line">      Archive Level            0</span><br><span class="line">      Real Time Archive Began  05/12/2025 07:25:01</span><br><span class="line">      Time Stamp Archive Began 8590386</span><br><span class="line">      Logical Log Unique Id    155</span><br><span class="line">      Logical Log Position     0x64f018</span><br></pre></td></tr></table></figure>
+
+<p><strong>Notes:</strong></p>
+<p>The dbspace structure is easier to understand intuitively than either the checkpoint or the log file structure.</p>
+<p><code>与检查点或log file structure相比，dbspace 结构更容易直观地理解。</code></p>
+<blockquote>
+<p>intuitively 英[ɪnˈtjuːɪtɪvli] 美[ɪnˈtuːɪtɪvli]<br>adv.凭直觉;直觉地，直观地；由直觉而得地;</p>
+</blockquote>
+<p><strong>Dbspace number</strong> (decimal) – Dbspace numbers are indexed from 1.</p>
+<p><strong>Dbspace name</strong> – This is the name given the dbspace when it was created, and the name used in all SQL syntax referring to this dbspace.</p>
+<p><code>这是创建 dbspace 时赋予它的名称，也是所有引用该 dbspace 的 SQL 语法中使用的名称。</code></p>
+<p><strong>Flags</strong> (hex) – The possible values for dbspace flags are:</p>
+<p>0x0001 DBspace has no mirror chunks</p>
+<p>0x0002 DBspace uses mirror chunks</p>
+<p>0x0004 DBspace has disabled mirror chunks</p>
+<p>0x0008 Newly mirrored</p>
+<p>Flags specific to blobspaces:</p>
+<p>0x0010 DBspace is a BLOBspace</p>
+<p>0x0020 BLOBspace resides on removable media</p>
+<p>0x0040 BLOBspace resides on optical media</p>
+<p>0x0080 BLOBspace has been dropped</p>
+<p>0x0100 BLOBspace is the optical STAGEBLOB</p>
+<p>Other flags:</p>
+<p>0x0200 Space is being physically recovered</p>
+<p>0x0400 Space has been physically recovered</p>
+<p>0x0800 Space is being logically recovered</p>
+<p>0x1000 A table in the dbspace was dropped</p>
+<p>0x2000 Temp DBspace</p>
+<p>0x4000 Space is being archived</p>
+<p>0x8000 Space is an sbspace</p>
+<p>0x10000 Either the physical or logical log has changed</p>
+<p>按这说的，那应该是0x10001，怎么是0x70001？</p>
+<p><strong>Number of chunks</strong> (decimal) – This indicates the total number of chunks in this dbspace (not counting mirror chunks).</p>
+<p><code>表示该数据库空间中的chunk总数（不包括镜像chunk）。</code></p>
+<p><strong>First chunk</strong> (decimal) – The concept of a <em>first chunk</em> in a dbspace is important internally because a dbspace structure and all its associated primary chunk structures form a linked list. From the <strong>First chunk</strong> element in a dbspace structure, Informix Dynamic Server can quickly find the first primary chunk structure associated with this dbspace. Then, based on the <strong>Next chunk</strong> in dbspace element in each primary chunk structure, Informix Dynamic Server can quickly walk down the rest of the list.</p>
+<p><code>dbspace 中的 first chunk 概念在内部非常重要，因为 dbspace 结构及其所有关联的主 chunk 结构构成了一个链表。IDS 可以通过 dbspace 结构中的 First chunk 元素，快速找到与该数据表空间相关联的 first primary chunk structure。然后，根据每个 primary chunk structure 中 dbspace 的 Next chunk 元素，IDS 可以快速找到列表的其余部分。</code></p>
+<p><strong>Date&#x2F;time created</strong> – This is the date and time, based on the UNIX <strong>localtime</strong> function, when the dbspace was created.</p>
+<p><code>这是创建 dbspace 的日期和时间，基于 UNIX 的 localtime 函数。</code></p>
+<p><strong>Partition table page numbe</strong>r – This indicates the location of the first page of the partition partition as a page offset into the first chunk of the dbspace.</p>
+<p><code>这表示 partition 第一页的位置，作为 dbspace 第一个 chunk 的页面偏移量。</code></p>
+<p>两个连着的partition，多写了一个吧</p>
+<p><strong>Pagesize (k)</strong> – This is the page size defined for this dbspace.</p>
+<p><strong>Logical Log Unique ID</strong> and <strong>Logical Log Position</strong> – These fields indicate the location of the ADDDBS transaction record for this dbspace.</p>
+<p><code>这些字段表示该 dbspace 的 ADDDBS 事务记录的位置。</code></p>
+<p>看不懂</p>
+<p><strong>Oldest Logical Log Unique ID</strong> and <strong>Last Logical Log Unique ID</strong> – These indicate the unique ID numbers of the oldest and most current logical logs.</p>
+<p><code>这表示最旧和最新逻辑日志的唯一 ID 编号。</code></p>
+<p><strong>Dbspace archive status</strong> – This displays information about the last backup that was performed that included this dbspace. Information includes the backup level, the start and end time of the backup, and the location of the backup checkpoint record.</p>
+<p><code>这将显示上一次执行的包含此 dbspace 的备份信息。信息包括备份级别、备份开始和结束时间以及备份 checkpoint record 的位置。</code></p>
+<p>没看出来哪个是结束时间</p>
+<p>最后两个逻辑日志相关参数代表 the location of the backup checkpoint record 吧</p>
  
       <!-- reward -->
       
