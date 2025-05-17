@@ -172,7 +172,7 @@
 <p>​		GBase 8t把分片表、索引的一个分片作为一个tablespace进行管理。每个表、索引在GBase8t 内部都有一个 partnum，在 GBase 8t 内部以该编号进行管理。例如在一个 GBase 8t 实例下有一个 database tblspace，包含所有的数据库 databases 的信息。database tblspace 的 partnum永远是 x00100002，位于 root dbspaces 上，也就是 sysmaster 数据中的 sysdatabases 表。</p>
 <p>​		我们可以通过查询 sysmaster 的 systabnames 表得到一个数据库实例下的所有表、索引的 tblspace 信息。</p>
 </blockquote>
-<p>所以，database tblspace有是系统表对应sysdatabases，而Tblspace tblspace看着应该是同样有个系统表，叫做Tblspace（描述特定 dbspace 中所有 tblspace），但又不知道在哪</p>
+<p>所以，database tblspace有系统表对应sysdatabases，而Tblspace tblspace看着应该是同样有个系统表，叫做Tblspace（描述特定 dbspace 中所有 tblspace），但又不知道在哪</p>
 <p><a target="_blank" rel="noopener" href="https://www.ibm.com/support/pages/what-tblspace-tblspace">What is TBLspace TBLspace?</a></p>
 <p>这篇文章提到：You are running IBM® Informix® Dynamic Server (IDS) database server and create a regular Dbspace. This Dbspace contains an internal table called TBLspace TBLspace. You cannot access the table using SQL commands.</p>
 <p>所以，有个内部表叫做TBLspace TBLspace，无法用SQL访问</p>
@@ -196,7 +196,7 @@
 <p><code>在每个chunk中，紧跟在保留页之后的那一页是chunk的空闲页列表页（chunk free-list page）。</code></p>
 <p><strong>Tblspace tblspace</strong></p>
 <p>Every dbspace contains a tblspace tblspace, also called a partition table. The first extent of the tblspace tblspace is always allocated in the first chunk of the dbspace. Like any other tblspace, when additional extents are required, they are allocated wherever there is room in the dbspace.</p>
-<p><code>每个 dbspace 都包含一个 tblspace tblspace，也称为分区表(partition table)。tblspace tblspace 的第一个范围总是分配在 dbspace 的第一个chunk中。与其他 tblspace 一样，当需要额外的扩展时，它们会被分配到 dbspace 中有空间的地方。</code></p>
+<p><code>每个 dbspace 都包含一个 tblspace tblspace，也称为分区表(partition table)。tblspace tblspace 的第一个 extent 总是分配在 dbspace 的第一个chunk中。与其他 tblspace 一样，当需要额外的扩展时，它们会被分配到 dbspace 中有空间的地方。</code></p>
 <p>The initial and subsequent extent size for the partition table in non-root dbspaces is 50 pages.</p>
 <p><code>非root dbspace中分区表（partition table）的初始和后续extent大小为 50 页。</code></p>
 <p><strong>Overview of Root Reserved Pages</strong></p>
@@ -452,6 +452,422 @@
 <p><code>这将显示上一次执行的包含此 dbspace 的备份信息。信息包括备份级别、备份开始和结束时间以及备份 checkpoint record 的位置。</code></p>
 <p>没看出来哪个是结束时间</p>
 <p>最后两个逻辑日志相关参数代表 the location of the backup checkpoint record 吧</p>
+<p><strong>The Primary Chunk Page</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">   Validating PAGE_1PCHUNK &amp; PAGE_2PCHUNK...</span><br><span class="line">         Using primary chunk page PAGE_1PCHUNK.</span><br><span class="line"></span><br><span class="line">   Chunk number                   1</span><br><span class="line">   Flags                          0x30040    Chunk is online</span><br><span class="line">   Chunk path                     /opt/gbase/storage/rootdbs</span><br><span class="line">   Chunk offset                   0 (p)</span><br><span class="line">   Chunk size                     78848 (p)</span><br><span class="line">   Number of free pages           64144</span><br><span class="line">   DBspace number                 1</span><br><span class="line"></span><br><span class="line">   Chunk number                   2</span><br><span class="line">   Flags                          0x32040    Chunk is online</span><br><span class="line">   &amp;                                         Chunk is extendable</span><br><span class="line">   Chunk path                     /opt/gbase/storage/ol_gbasedbt1210_1_plog_p_1</span><br><span class="line">   Chunk offset                   0 (p)</span><br><span class="line">   Chunk size                     36045 (p)</span><br><span class="line">   Number of free pages           6</span><br><span class="line">   DBspace number                 2</span><br><span class="line">……</span><br></pre></td></tr></table></figure>
+
+<p><strong>Notes:</strong></p>
+<p>The primary chunk page contains information about each primary chunk created on the database server.</p>
+<p><code>主chunk页面包含在server上创建的每个主chunk的信息。</code></p>
+<p><strong>Chunk number</strong> (decimal) – Chunk numbers are indexed from 1, whereas page offsets begin with 0. The lowest possible value for a page address is therefore 1:0.</p>
+<p><code>chunk编号的索引从 1 开始，而页面偏移量则从 0 开始。 因此，页面地址的最小值可能是 1:0。</code></p>
+<p><strong>Flags</strong> (hex) – Individual chunk flags, ORed together into this one element, have the following values:</p>
+<p><code>各个独立的chunk标志通过按位或操作（OR）组合在一起，形成这个元素，具有以下值：</code></p>
+<p>0x0010 Mirror chunk</p>
+<p>0x0020 Chunk is off-line</p>
+<p>0x0040 Chunk is on-line</p>
+<p>0x0080 Chunk is being recovered</p>
+<p>0x0100 Chunk is newly mirrored</p>
+<p>0x0200 Chunk is belongs to a blobspace</p>
+<p>0x0400 Chunk is being dropped</p>
+<p>0x0800 Chunk is part of an optical stageblob</p>
+<p>0x1000 Chunk is inconsistent with the rest of the system</p>
+<p>0x2000 Chunk has been chained</p>
+<p>0x4000 Chunk belongs to an sbspace</p>
+<p><strong>Chunk path</strong> – This is the full pathname to the chunk device or file. </p>
+<p><code>这是chunk设备或文件的完整路径名。</code></p>
+<p><strong>Chunk offset</strong> (decimal) – This chunk begins at <strong>Chunk offset</strong> <em>pages</em> into <strong>Chunk path</strong>.</p>
+<p><code>该chunk从 Chunk path 中偏移 Chunk offset 页的位置开始。</code></p>
+<p><strong>Chunk size</strong> (decimal) – This indicates the size of the chunk in <em>pages</em>.</p>
+<p><code>这表示数据块的大小，单位为页。</code></p>
+<p><strong>Number of free pages</strong> (decimal) – This indicates the total number of pages currently in the chunk free list.</p>
+<p>·这表示当前chunk free list的页面总数。·</p>
+<p><strong>Dbspace number</strong> (decimal) – This is the unique dbspace number.</p>
+<p><code>这是唯一的dbspace编号。</code></p>
+<p><strong>The Mirror Chunk Page</strong></p>
+<p>没人用 Mirror Chunk 了吧，跳过不看</p>
+<p><strong>The Archive Page</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">Validating PAGE_1ARCH &amp; PAGE_2ARCH...</span><br><span class="line">         Using archive page PAGE_1ARCH.</span><br><span class="line"></span><br><span class="line">   Archive Level                  0</span><br><span class="line">   Real Time Archive Began        05/12/2025 07:25:01</span><br><span class="line">   Time Stamp Archive Began       0x831432</span><br><span class="line">   Logical Log Unique Id          155</span><br><span class="line">   Logical Log Position           0x64f018</span><br><span class="line"></span><br><span class="line">   Archive Level                  1</span><br><span class="line">   Real Time Archive Began        05/12/2025 07:25:52</span><br><span class="line">   Time Stamp Archive Began       0x8314b5</span><br><span class="line">   Logical Log Unique Id          155</span><br><span class="line">   Logical Log Position           0x656018</span><br><span class="line"></span><br><span class="line">   DR has not been initialized.</span><br></pre></td></tr></table></figure>
+
+<p><strong>Notes:</strong></p>
+<p>The archive reserved page is the last in the set of root reserved pages. Up to three archive structures can be present on the page, depending on the level of archives taken on the system. Once a second or third archive structure comes to exist on the page, it is never deleted because a new level-0 archive does not negate the potential importance of a previous level 1 or level 2 archive.</p>
+<p><code>存档预留页是root预留页中的最后一个。页面上最多可有三个存档结构，具体取决于系统中存档的级别。一旦页面上出现第二个或第三个存档结构，它将永远不会被删除，因为新的 0 级存档不会否定之前的 1 级或 2 级存档的潜在重要性。</code></p>
+<p>看不懂，对应0、1、2级备份吧</p>
+<p>New information is recorded in the archive reserved page only when an archive completes successfully.</p>
+<p><code>只有当存档成功完成时，存档保留页面才会记录新信息。</code></p>
+<p><strong>Archive Level</strong> (decimal) – This can be level 0, 1, or 2.</p>
+<p><strong>Real Time Archive Began</strong> – This indicates the date and time of the archive checkpoint as seen by the localtime function on the UNIX host machine.</p>
+<p><code>这表示存档检查点的日期和时间，由 UNIX 主机上的 localtime 功能显示。</code></p>
+<p>看不懂，什么叫存档检查点？从名字看就是备份时间吧</p>
+<p><strong>Time Stamp Archive Began</strong> (decimal) – This is a timestamp associated with the checkpoint that occurred at the start of the archive.</p>
+<p><code>这是与存档开始时发生的检查点相关联的时间戳。</code></p>
+<p>看不懂</p>
+<p><strong>Logical Log Unique Id</strong> (decimal) – This is the unique ID of the logical log that contains the archive checkpoint record.</p>
+<p><code>这是包含 archive checkpoint record 的逻辑日志的唯一 ID。</code></p>
+<p><strong>Logical Log Position</strong> (hex) – This is the position within the log (logpos) specified by logical log unique ID where the archive checkpoint can be found.</p>
+<p><code>这是在逻辑日志唯一 ID 指定的日志 (logpos) 中可以找到 archive checkpoint 的位置。</code></p>
+<p><strong>Chunk Free List</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505132122121.png" alt="image-20250513212245968"></p>
+<p><strong>Notes:</strong></p>
+<p>Every chunk needs a mechanism to track its own available space. Following the last reserved page in each chunk is a chunk free-list page. This page, which can be one of several depending on the fragmentation in the chunk, contains structures pointing to <em>unused</em> extents. Each structure, or <em>free-list entry</em>, contains two elements: the starting page of an unclaimed extent, and the length of the free extent measured in pages.</p>
+<p><code>每个 chunk 都需要一种机制来跟踪自己的可用空间。在每个chunk的最后一个预留页之后是一个 chunk free-list page。该页面可以是多个页面之一，取决于 chunk 中的碎片情况，包含指向未使用extent的结构。每个结构或free-list条目包含两个元素：空闲extent的起始页和空闲extent的长度（以页为单位）。</code></p>
+<p>“该页面可以是多个页面之一”，多个翻译软件都是这么翻译的，不像人话，意思应该是可能有多个chunk free-list page，如果碎片很多的话，要记录很多的起始和偏移，一页放不下，如果一个碎片都没有，一个起始和偏移就够了。</p>
+<blockquote>
+<p>unclaimed 英[ˌʌnˈkleɪmd] 美[ˌʌnˈkleɪmd]<br>adj.无人认领的;无人索取的;</p>
+</blockquote>
+<p><strong>Allocation of space</strong></p>
+<p>When an extent is allocated in a chunk, the loss of free space is manifested in either the removal of an entry from the chunk free list, or a modification to one or both elements in an entry there.</p>
+<p>当在chunk中分配一个extent时，可用空间的损失表现为从chunk free list中删除一个条目，或修改该条目中的一个或两个元素。</p>
+<blockquote>
+<p>manifest<br>英[ˈmænɪfest] 美[ˈmænɪfest]<br>vt.表明;显示;显现;清楚显示(尤指情感、态度或品质);使人注意到;<br>adj.明显的;<br>n.(船或飞机的)货单;旅客名单;</p>
+<p>以前都按java的<em>MANIFEST</em>.MF理解为：清单</p>
+</blockquote>
+<p><strong>Freeing space</strong></p>
+<p>Informix Dynamic Server frees space when a table is dropped, or in some cases when a table is altered. When free space is reclaimed, a new entry can be added to the chunk free list. If the newly freed space is contiguous with existing free space, only the length element in the associated free-list entry is changed; otherwise, a new entry is created.</p>
+<p><code>IDS 会在删除表或在某些情况下更改表时释放空间。当空闲空间被回收时，可以在chunk free list中添加一个新条目。如果新释放的空间与现有的空闲空间毗连，则只更改相关空闲列表条目中的长度元素；否则，将创建一个新条目。</code></p>
+<blockquote>
+<p>reclaim<br>英[rɪˈkleɪm] 美[rɪˈkleɪm]<br>vt.回收;开垦，利用，改造(荒地);取回;挽救;要求归还;拿回;沙化;荒漠化;重新变为沙漠(或森林等);抛荒;<br>n.开垦;改造;取回;矫正;</p>
+</blockquote>
+<p><strong>Additional chunk free-list pages</strong></p>
+<p>If a chunk becomes so fragmented that the initial chunk free-list page is full of entries, an additional chunk free-list page is allocated. These pages are then chained together in the form of a linked list. Each link in this chain is responsible only for extents between itself and the next chunk free-list page. This design requires a good deal of coordination among the links.</p>
+<p><code>如果一个分块变得非常分散，以至于初始chunk free-list page已经满载条目，那么就会分配一个额外的chunk free-list page。然后，这些页面以链表的形式串联起来。链中的每个链接只负责自身和下一个chunk free-list page之间的扩展。这种设计要求链路之间有很好的协调性。</code></p>
+<p><strong>Tblspace Tblspace (for Root Dbspace)</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505132157873.png" alt="image-20250513215730788"></p>
+<p><strong>Notes:</strong></p>
+<p>In the initial chunk of every dbspace, the page following the chunk free list marks the beginning of the tblspace tblspace (partition table). The tblspace tblspace is a collection of pages that describes the complexion and location of each table in the dbspace. In many ways, the tblspace tblspace itself is considered just another table. For example, one of its pages describes the tblspace tblspace!</p>
+<p><code>在每个 dbspace 的初始chunk中，数据chunk free list之后的页面标志着 tblspace tblspace（分区表）的开始。tblspace tblspace 是描述 dbspace 中每个表的结构和位置的页面集合。在许多方面，tblspace tblspace 本身就被认为是另一个表。例如，其中一个页面描述了 tblspace tblspace！</code></p>
+<blockquote>
+<p>complexion<br>英[kəmˈplekʃn] 美[kəmˈplekʃn]<br>n.肤色;面色;气色;(事物的)性质，特性;</p>
+<ul>
+<li><em>complex</em> 的“复杂性”含义源于“多元素交织”的原始意象。</li>
+<li><em>complexion</em> 的中世纪生理学概念认为体液混合决定面色，故从“混合状态”引申为“肤色”。</li>
+</ul>
+</blockquote>
+<p>You can configure the size of the first and subsequent extents for the tblspace tblspace in by setting the TBLTBLFIRST and TBLTBLNEXT configuration parameters. The default value of 0 directs the database server to determine appropriate extent sizes based on the size of the initial dbspace chunk.</p>
+<p><code>通过设置 TBLTBLFIRST 和 TBLTBLNEXT 配置参数，可以配置 tblspace tblspace 中第一个和后续extent的大小。默认值 0 会指示server根据初始 dbspace chunk 的大小确定适当的extent大小。</code></p>
+<p>Every tblspace in the system has exactly one tblspace tblspace page describing it. For brevity’s sake, we often refer to this special page type as a <em>partition page</em>.</p>
+<p><code>系统中的每个 tblspace 都有且只有一个 tblspace tblspace page 来描述它。为了简洁起见，我们通常将这种特殊类型的页面称为 分区页（partition page）。</code></p>
+<p>上图大方格那一行page</p>
+<p><strong>Partition Number (Partnum)</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505142301023.png" alt="image-20250514230139875"></p>
+<p><strong>Notes:</strong></p>
+<p>The purpose of a table’s partition number, another 4-byte hexadecimal code, is to guide Informix Dynamic Server to that table’s partition page in the tblspace tblspace. The high-order byte-and-a-half (3 nibbles) of a partnum indicates which dbspace contains the table. Using the value of that byte-and-a-half, Informix Dynamic Server locates the tblspace tblspace for the target dbspace. One of the pages in that tblspace tblspace describes the target table. Informix Dynamic Server locates the correct partition page using the low-order five nibbles of the partnum, which contain a logical page number.</p>
+<p><code>表的 partition number 是一个4字节的十六进制代码，其作用是引导 IDS 定位到该表在 tblspace tblspace 中的 partition page。这个 partnum 的高一字节半（3个半字节）用于指示表所在的 dbspace。通过这个高一字节半的值，IDS 可以定位到目标 dbspace 所对应的 tblspace tblspace。该 tblspace tblspace 中的某个页面描述了目标表。IDS 再通过分区号的低五个半字节——即逻辑页码，来定位到正确的 partition page。</code></p>
+<blockquote>
+<p>nibble 英[ˈnɪbl] 美[ˈnɪbl]</p>
+<p>半字节</p>
+<p>v.小口咬;一点点地咬(食物);(对…)略微表现出兴趣;<br>n.一小口;小吃;(餐前或聚会中的)点心;</p>
+</blockquote>
+<p>上上个图，partition number还是3字节，到这边4字节了…</p>
+<p>Let us say the <strong>stores_demo:customer</strong> table has a partition number of 0x001000A5. This code means that logical page 0xA5 (165) within the tblspace tblspace for dbspace 1 is the partition page for <strong>stores_demo:customer</strong>.</p>
+<p><code>例如，stores_demo:customer 表的分区号为 0x001000A5。这段代码表示，dbspace 1 的 tblspace tblspace 中的逻辑页 0xA5 (165) 是 stores_demo:customer 的 partition page。</code></p>
+<p><strong>Partition Page Layout</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505152133530.png" alt="image-20250515213343393"></p>
+<p><strong>Notes:</strong></p>
+<p>Each partition page uses the following 5-slot format to describe the structure, location, and contents of one table in the dbspace:</p>
+<p><code>每个 partition page 使用以下 5 个slot的格式来描述 dbspace 中一个表的结构、位置和内容：</code></p>
+<p><strong>•</strong> The partition structure (slot 1) contains 92 bytes of general table information, including the partition number (see next page).</p>
+<p><code>partition structure（slot 1）包含 92 个字节的常规表信息，包括分区编号（见下页，往后边看有详细解释）。</code></p>
+<p><strong>•</strong> Slot 2 contains information identifying the partition by database name, table owner, table name, and NLS collation sequence (if any).</p>
+<p><code>Slot 2 包含用于标识 partition 的信息，包括数据库名称、表拥有者、表名称，以及 NLS 排序规则（如果有的话）。</code></p>
+<p><strong>•</strong> Slot 3 contains a descriptive entry for each <em>special</em> column in the table, meaning blobs and VARCHAR types.</p>
+<p><code>slot 3 包含表中每个特殊列的描述性条目，即 blobs 和 VARCHAR 类型。</code></p>
+<p><strong>•</strong> Slot 4 contains a <em>key descriptor</em> entry for each index key that exists for this table. Therefore, when accessing a particular tblspace, an error such as <em>Illegal key descriptor:</em> <em>too many parts or too long</em> refers to a problem with slot 4 on that table’s partition page, and not with the index itself. Because dropping an index requires the use of its key descriptor, a bad key descriptor can sometimes require the intervention of IBM Informix Technical Support to fix.</p>
+<p><code>Slot 4 包含该表中每个索引键的“键描述符”（key descriptor）条目。因此，当访问某个特定的表空间（tblspace）时，若出现类似 非法键描述符（Illegal key descriptor）：part过多或过长（too many parts or too long） 的错误，通常说明该表的分区页上的 Slot 4 出现了问题，而不是索引本身存在问题。由于删除索引时需要使用其键描述符（key descriptor），因此损坏的键描述符有时需要 IBM Informix 技术支持介入才能修复。</code></p>
+<p><strong>•</strong> Slot 5 contains extent information. Each 8-byte entry in this slot includes:</p>
+<p><code>slot 5 包含 extent 信息。该 slot 中的每个 8 字节条目包括</code></p>
+<p>​     <strong>-</strong> the logical page number of that extent’s first page within the tblspace (4 bytes)</p>
+<p>​    <code>tblspace 中该 extent 第一页的逻辑页码（4 个字节）</code></p>
+<p>​     <strong>-</strong> the page offset of the extent into the dbspace (4 bytes)</p>
+<p>​    <code>dbspace 中 extent 的页面偏移量（4 个字节）</code></p>
+<p>​    The slot also includes one “on-deck” entry that includes the logical page number for the next extent allocated.</p>
+<p>​    <code>slot还包括一个 “on-deck ”条目，其中包括下一个已分配extent的逻辑页码。</code></p>
+<p>​	slot 5 看不懂</p>
+<p>A table could also have a sixth slot, but it does not appear on the main partition page for that table. The sixth slot is used to describe different versions of extents that result from altering a table in-place. This slot appears on a separate page in the tblspace tblspace.</p>
+<p><code>表也可以有第六个slot，但它不会出现在该表的 main partition page 上。第六个 slot 于描述因就地更改表而产生的不同 extent 版本。该 slot 在 tblspace tblspace 中的一个单独页面上。</code></p>
+<p>什么叫 main partition page，第一页？</p>
+<p><strong>Slot 1: The Partition Structure</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">TBLspace Report <span class="keyword">for</span> testdb:root.t1</span><br><span class="line"></span><br><span class="line">    Physical Address               13:570</span><br><span class="line">    Creation <span class="built_in">date</span>                  05/08/2025 05:05:57</span><br><span class="line">    TBLspace Flags                 902        Row Locking</span><br><span class="line">                                              TBLspace contains VARCHARS</span><br><span class="line">                                              TBLspace use 4 bit bit-maps</span><br><span class="line">    Maximum row size               16</span><br><span class="line">    Number of special columns      1</span><br><span class="line">    Number of keys                 0</span><br><span class="line">    Number of extents              1</span><br><span class="line">    Current serial value           1</span><br><span class="line">    Current SERIAL8 value          1</span><br><span class="line">    Current BIGSERIAL value        1</span><br><span class="line">    Current REFID value            1</span><br><span class="line">    Pagesize (k)                   2</span><br><span class="line">    First extent size              8</span><br><span class="line">    Next extent size               8</span><br><span class="line">    Number of pages allocated      8</span><br><span class="line">    Number of pages used           2</span><br><span class="line">    Number of data pages           1</span><br><span class="line">    Number of rows                 4</span><br><span class="line">    Partition partnum              13631559</span><br><span class="line">    Partition lockid               13631559</span><br><span class="line"></span><br><span class="line">    Extents</span><br><span class="line">         Logical Page     Physical Page        Size Physical Pages</span><br><span class="line">                    0           13:2087           8          8</span><br></pre></td></tr></table></figure>
+
+
+
+<p><strong>Notes:</strong></p>
+<p>The partition structure is stored in the first slot on every partition page and holds general information about the corresponding table. You can view the partition structure for any table by running the command:</p>
+<p><code>partition structure 存储在每个 partition page 的第一个 slot 中，包含相应表的一般信息。运行该命令可以查看任何表的 partition structure：</code></p>
+<p>​	oncheck -pt <em>database_name</em>:<em>table_name</em></p>
+<p>Instead of a database and table name, you can provide a partition number:</p>
+<p>​	oncheck -pt 1048672</p>
+<p>The output of this command consists of slightly-massaged versions of the partition structure (slot 1) and the extent structure (slot 5) for the partition page. An example of <strong>oncheck</strong> output for the partition structure is shown in the slide above.</p>
+<p><code>该命令的输出包括partition structure（slot 1）和 partition page 的 extent structure（slot 5）的略微简化版本（最后3行）。上面的幻灯片显示了 partition structure 的 oncheck 输出示例。</code></p>
+<p>You might recognize some of the general tblspace information stored in the partition structure as table statistics, also stored in system catalogs for use by the optimizer. In fact, during some UPDATE STATISTICS operations, some information from a table’s partition page is copied into system catalogs, while other information must be gathered by reading the tblspace pages themselves. Although the system catalog information can become out of date as the table grows and changes, the information on the partition page should always be accurate. However, the optimizer code is meant to be portable across Informix servers and it, therefore, does not know how to access a partition page. As far as the optimizer is concerned, the only table statistics available are stored in system catalogs.</p>
+<p><code>你可能会注意到，partition structure 中存储的一些通用表空间（tblspace）信息，与存储在系统目录（system catalogs）中的表统计信息相似，这些统计信息被优化器（optimizer）用于优化查询。实际上，在某些 </code>UPDATE STATISTICS<code> 操作中，部分表的分区页（partition page）中的信息会被复制到 system catalogs 中，而其他信息则必须通过读取表空间页（tblspace pages）来收集。尽管系统目录中的信息可能会随着表的增长和变化而变得过时，partition page 中的信息应始终是准确的。然而，优化器的代码是为了在不同的 Informix server 之间具备可移植性，因此它并不了解如何访问 partition page。就优化器而言，唯一可用的表统计信息就是存储在 system catalogs 中的那些。</code></p>
+<blockquote>
+<p>gather 聚集 英[ˈɡæðə(r)] 美[ˈɡæðər]</p>
+</blockquote>
+<p>前边说，为了简洁，把 tblspace tblspace page 叫做 partition page，那 tblspace pages 是什么？先不管它，好像 Unit 4 有讲</p>
+<p><strong>Physical Address</strong> (decimal:decimal) – This is not the partition number, nor is it an address related to any tblspace extent. Unlike the rest of the elements displayed, the physical address is not even part of the partition structure. The oncheck report is simply displaying the physical location (chunk number and page offset) of the partition page from which the rest of the information has been taken.</p>
+<p><code>这不是 partition number，也不是与任何 tblspace extent 相关的地址。与显示的其他元素不同，物理地址甚至不是 partition structure 的一部分。oncheck 只是显示 partition page 的物理位置（chunk number 和 page offset），其他信息都是从该页面获取的。</code></p>
+<p><strong>Creation date</strong> – This is the date and time this table was created.</p>
+<p><code>这是该表的创建日期和时间。</code></p>
+<p><strong>TBLSpace Flags</strong> (decimal) – These flags operate as page flags, dbspace flags, and chunk flags do, coagulating in one integer with the help of the logical OR. Individual tblspace flags have the following values and meanings:</p>
+<p><code>这些 flags 与 page flags, dbspace flags 和 chunk flags 一样，在逻辑 OR 的帮助下合并为一个整数。各个 tblspace 标志的值和含义如下：</code></p>
+<blockquote>
+<p>coagulate 英[kəʊˈæɡjuleɪt] 美[koʊˈæɡjuleɪt]<br>v.(使)凝结，凝固;<br>n.（&#x3D;coagulum）凝结物(如血块);<br>adj.&lt;古&gt;凝结的;</p>
+</blockquote>
+<p>0x0001 Page-level locking</p>
+<p><code>页级锁</code></p>
+<p>0x0002 Row-level locking</p>
+<p><code>行级锁</code></p>
+<p>0x0004 Tblspace is a Bundlespace (OnLine secure)</p>
+<p>看不懂</p>
+<p>0x0008 Partition marked for DDR replication</p>
+<p>和ER有关吧，看不懂</p>
+<p>0x0010 Partition dropped (shared memory only)</p>
+<p>0x0020 System-defined temporary table</p>
+<p>0x0040 User-defined temporary table</p>
+<p>0x0080 Tblspace used for sorting</p>
+<p>0x0100 Contains VARCHAR column(s)</p>
+<p>0x0200 Contains BLOBspace BLOB column(s)</p>
+<p>0x0400 Contains partition-resident BLOB column(s)</p>
+<p>0x0800 Requires 4-bit bitmap</p>
+<p>0x1000 Contains optical BLOB column(s)</p>
+<p>0x2000 Partition required for system to function - do not drop</p>
+<p>0x4000 Temp table being used for special function - do not update</p>
+<p>0x8000 Partition is being appended to</p>
+<p><strong>Maximum row size</strong> (decimal) – For tables with fixed-length rows, this value is simply the row size in bytes. The concept of a <em>maximum</em> row size becomes necessary only when a tblspace contains VARCHAR columns. Recall that a VARCHAR column is defined with a minimum and a maximum size, in units of characters, which is equivalent to bytes. The maximum size of a VARCHAR column, plus one byte of overhead (in which to store the actual size of the VARCHAR data) is added with the sizes of the other columns in the schema to arrive at this <em>maximum row size</em> figure.</p>
+<p><code>对于具有固定长度行的表，该值就是以字节为单位的行大小。只有当 tblspace 包含 VARCHAR 列时，才有必要使用最大行大小的概念。回想一下，VARCHAR 列的最小和最大大小是以字符为单位定义的，相当于字节。VARCHAR 列的最大大小加上一个字节的开销（用于存储 VARCHAR 数据的实际大小），再加上模式中其他列的大小，就得出了最大行大小这个数字。</code></p>
+<blockquote>
+<p>figure 英[ˈfɪɡə(r)] 美[ˈfɪɡjər]<br>n.图形;人物;人，动物;（书中的）图，表;身材;位数;花样;（远处人的）轮廓;（人、动物的）雕像，塑像;算术;数字符号;字码;(代表数量，尤指官方资料中的)数字;<br>v.是…的部分;计算(数量或成本);认为，认定(某事将发生或属实);是重要部分;</p>
+</blockquote>
+<p>知乎这回答应该是oracle里schema的概念。IX9111这段中的schema先理解成包含columns的数据库对象吧，如：表</p>
+<blockquote>
+<p>知乎：</p>
+<p>在学习数据库时，会遇到一个让人迷糊的Schema的概念。实际上，<a target="_blank" rel="noopener" href="https://zhida.zhihu.com/search?content_id=72023897&content_type=Answer&match_order=1&q=schema&zhida_source=entity">schema</a>就是<a target="_blank" rel="noopener" href="https://zhida.zhihu.com/search?content_id=72023897&content_type=Answer&match_order=1&q=%E6%95%B0%E6%8D%AE%E5%BA%93%E5%AF%B9%E8%B1%A1&zhida_source=entity">数据库对象</a>的集合，这个集合包含了各种对象如：表、视图、<a target="_blank" rel="noopener" href="https://zhida.zhihu.com/search?content_id=72023897&content_type=Answer&match_order=1&q=%E5%AD%98%E5%82%A8%E8%BF%87%E7%A8%8B&zhida_source=entity">存储过程</a>、索引等。</p>
+<p>如果把database看作是一个仓库，仓库很多房间（schema），一个schema代表一个房间，table可以看作是每个房间中的储物柜，user是每个schema的主人，有操作数据库中每个房间的权利，就是说每个数据库映射user有每个schema（房间）的钥匙。</p>
+</blockquote>
+<p><strong>Number of special columns</strong> (decimal) – Blob and VARCHAR columns are considered <em>special</em>, Informix Dynamic Server-only column types.</p>
+<p><code>Blob 和 VARCHAR 列被认为是特殊的，仅限 IDS 使用的列类型。</code></p>
+<p><strong>Number of keys</strong> (decimal) – The total number of indexes defined for the table. A composite index can be made from several columns, but still has only one index <em>key</em>.</p>
+<p><code>为表定义的索引总数。复合索引可以由多个列组成，但仍然只有一个索引键。</code></p>
+<p><strong>Number of extents</strong> (decimal) – The number of separate extents allocated to the table. Extent concatenation and doubling, and good tblspace management on the part of the Informix Dynamic Server administrator, tend to keep this number low. As the number of extents for a tblspace grows, not only can data be scattered unpredictably (a performance problem for sequential reads), but the extent slot on the partition page grows. An extent slot can contain only so many entries before it runs out of room. Because other slots on the partition page, such as slot 4, can also grow dynamically, there is no way to publish a maximum number of tblspace extents with any accuracy. Empirical evidence has shown the maximum number of extents on a 2K-page is approximately 190.</p>
+<p><code>分配给表的独立extent的数量。extent的拼接与倍增（机制），以及 IDS 管理员对表空间（tblspace）的良好管理，往往能将这一数量保持在较低水平。随着 tblspace 的extent 数量增加，不仅数据会不可预测地分散（对于顺序读取来说是个性能问题），而且 partition page 上的 extent slot 也会增加。在空间耗尽之前，一个 extent slot 只能容纳这么多条目。由于 partition page 上的其他 slot（如 slot 4）也会动态增长，因此无法准确发布 tblspace extents 的最大数量。经验表明，2K 页面上的最大扩展项数量约为 190 个。</code></p>
+<p>extent slot 是 slot 5 上 extent list 中的元素？</p>
+<blockquote>
+<p>scatter 分散 英[ˈskætə(r)] 美[ˈskætər]</p>
+<p>predictably 可推断 美[prɪˈdɪktəbli]</p>
+<p>empirical 英[ɪmˈpɪrɪkl] 美[ɪmˈpɪrɪkl] adj.经验主义的;以实验(或经验)为依据的;</p>
+<p>approximately 大概 英[əˈprɒksɪmətli] 美[əˈprɑːksɪmətli]</p>
+</blockquote>
+<p><strong>Current serial value</strong> (decimal) – A tblspace can contain only one serial column. If one exists, this is the next value that is used for an insert. If there is no serial column in the table, this value remains 1.</p>
+<p><code>一个 tblspace 只能包含一个 serial 列。如果存在 serial 列，则下一个值将用于插入。如果表中没有 serial 列，该值将保持为 1。</code></p>
+<p><strong>First extent size</strong> (decimal) – This is the configured EXTENT SIZE, in units of Informix Dynamic Server pages. The units here can be a bit confusing because through SQL, one specifies EXTENT SIZE in kilobytes.</p>
+<p><code>这是配置的 EXTENT SIZE，以 IDS page 为单位。这里的单位可能有点令人困惑，因为通过 SQL，我们可以用 KB 来指定 EXTENT SIZE。</code></p>
+<p>The default EXTENT SIZE is 8 pages, regardless of the page size. The minimum extent size is 4 pages.</p>
+<p><code>无论页面大小如何，默认 extent 大小为 8 页。最小 extent 大小为 4 页。</code></p>
+<p><strong>Next extent size</strong> (decimal) – This is the configured NEXT SIZE, also in units of Informix Dynamic Server pages. Note that at the SQL level one specifies NEXT SIZE in units of kilobytes, so like First extent size, the value here is initially either half or one quarter the number used with the NEXT SIZE clause in SQL.</p>
+<p><code>这是配置的 NEXT SIZE，也是以 IDS page 为单位。请注意，在 SQL 级别，NEXT SIZE 是以 KB 为单位指定的，因此与 First extent size 一样，这里的值最初是 SQL 中 NEXT SIZE 子句所用数字的一半或四分之一。</code></p>
+<blockquote>
+<p>chatgpt:</p>
+<h3 id="具体解释如下："><a href="#具体解释如下：" class="headerlink" title="具体解释如下："></a>具体解释如下：</h3><ul>
+<li>在 SQL 中，<code>NEXT SIZE</code> 是以 <strong>KB（千字节）</strong> 为单位指定的。</li>
+<li>在内部，Informix 使用的是 <strong>页（page）</strong> 为单位的存储方式，比如常见的页大小是 <strong>2KB</strong> 或 <strong>4KB</strong>。</li>
+</ul>
+<h4 id="示例说明："><a href="#示例说明：" class="headerlink" title="示例说明："></a>示例说明：</h4><ul>
+<li>如果你的数据库页大小是 <strong>2KB</strong>：<ul>
+<li>你在 SQL 中写 <code>NEXT SIZE 64</code>（表示 64KB）；</li>
+<li>那么转换成页就是：<code>64KB ÷ 2KB = 32 页</code>；</li>
+<li>此时内部记录的 NEXT SIZE 就是 32。</li>
+</ul>
+</li>
+<li>如果页大小是 <strong>4KB</strong>：<ul>
+<li>同样的 SQL 指定 <code>NEXT SIZE 64</code>；</li>
+<li>内部转换成页就是：<code>64KB ÷ 4KB = 16 页</code>；</li>
+<li>所以内部值会是 16。</li>
+</ul>
+</li>
+</ul>
+<p>因此：</p>
+<p>如果页大小是 2KB，则内部值是 SQL 值的一半；<br>如果页大小是 4KB，则内部值是 SQL 值的四分之一。</p>
+</blockquote>
+<p>Next extent size can increase over time due to extent size doubling. The size never decreases unless the table is deliberately altered. The default for the next extent size is 8 pages. The minimum extent size is 4 pages.</p>
+<p><code>由于 extent 大小的倍增机制，Next extent size 可能会随着时间推移而增加。除非对表进行显式修改，否则该大小不会减少。Next extent size 的默认值是 8 页，最小值为 4 页。</code></p>
+<blockquote>
+<p>deliberately 故意 英[dɪˈlɪbərətli] 美[dɪˈlɪbərətli]</p>
+</blockquote>
+<p><strong>Number of pages allocated</strong> (decimal) – This is the total number of pages, whether used or not, contained in the extents allocated to the tblspace.</p>
+<p><code>这是分配给表空间（tblspace）的所有 extent 中包含的页数总和，无论这些页是否已被使用。</code></p>
+<p><strong>Number of pages used</strong> (decimal) – This is the maximum number of pages that have ever been used in the tblspace.</p>
+<p><code>这是 tblspace 中使用过的最大页数。</code></p>
+<p><strong>Number of data pages</strong> (decimal) – This is the number of data pages currently in use in the tblspace. When all rows are deleted from a data page, the page is freed for reuse in the tblspace, and the <strong>Number of data pages</strong> element of the partition structure is decremented.</p>
+<p><code>这是当前在 tblspace 中使用的数据页数。当从数据页中删除所有行时，该页将被释放以供在 tblspace 中重复使用，并且 partition structure 中的“Number of data pages”元素将减少。</code></p>
+<p><strong>Number of rows</strong> (decimal) – This indicates the number of rows in the tblspace.</p>
+<p><code>这表示 tblspace 中的行数。</code></p>
+<p><strong>Partition partnum</strong> (decimal) – This indicates the partition number of the tblspace.</p>
+<p><code>这表示 tblspace 的 partition number。</code></p>
+<p><strong>Partition lockid</strong> – It used to be that when you locked an Informix Dynamic Server table, you were really locking a partition number. This works as long as there is a one-to-one correspondence between database tables and Informix Dynamic Server partition numbers. But fragmentation allows many partitions to be associated with one database table. Rather than associate the partnums of every table fragment with a single table lock, Informix Dynamic Server uses this value, the lockid, to represent all table fragments.</p>
+<p><code>过去，锁定 IDS 表时，实际上是锁定一个 partition number。只要数据库表和 IDS partition number 之间存在一一对应关系，这种方法就能奏效。但分片允许将许多 partition 与一个数据库表关联起来。IDS 不会将每个表片段的分区号与单个表锁相关联，而是使用 lockid 这个值来代表所有表片段。</code></p>
+<p><strong>The Partition Page Location</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505171729739.png" alt="image-20250517172857535"></p>
+<p><strong>Notes:</strong></p>
+<p>Dynamic Server determines the location of a table’s partition page based on that table’s partition number, which is stored in <strong>systables.partnum</strong>. Upon reading a partition page, the database server can check that it has found the correct one by scanning the first 4-byte element in the partition structure. This first element contains the partition number. Here is an example:</p>
+<p><code>IDS 根据表的 partition number 确定表的 partition page 位置，partition number 存储在 systables.partnum 中。读取 partition page 时，server 可通过扫描 partition structure 中的第一个 4 字节元素来检查是否找到了正确的 partition page。第一个元素包含 partition number。下面是一个示例：</code></p>
+<ol>
+<li><p>The database server receives a request to access the <strong>items</strong> table.</p>
+<p><code>server 收到访问 items 表的请求。</code></p>
+</li>
+<li><p>In order to find the partition page for the <strong>items</strong> table, the server must determine its partition number. The database server selects the <strong>partnum</strong> value from <strong>systables</strong>.</p>
+<p><code>为了找到 items 表的 partition page，server 必须确定其 partition number。server 从 systables 中查询 partnum 值。</code></p>
+</li>
+<li><p>Based on the partition number, a hex code comprised of a dbspace number and a logical page number, IDS reads a specific partition page from a specific tblspace tblspace.</p>
+<p><code>根据partition number（由 dbspace 编号和逻辑页码组成的十六进制代码），IDS 会从特定的 tblspace tblspace 中读取特定的 partition page。</code></p>
+</li>
+<li><p>To check its work, the Dynamic Server process reads the first element of the partition structure found in slot 1 on the partition page, comparing the value found there against the partition number selected from <strong>systables</strong> during step 2 above.</p>
+<p><code>为检查其工作，server 进程会读取 partition page slot 1 中 partition structure 的第一个元素，并将其中的值与上述第 2 步中从 systables 查询的 partition number 进行比较。</code></p>
+</li>
+<li><p>If the two partition numbers match, the operation has so far been successful. If they differ, the database server writes an assertion failure message to the message log and returns errors 242 and 135 to the client process.</p>
+<p><code>如果两个 partition number 匹配，则操作成功。如果不一致，server 会在消息日志中写入断言失败消息，并向客户进程返回错误 242 和 135。</code></p>
+</li>
+</ol>
+<p><strong>Slot 5: The Extent Slot</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505171743215.png" alt="image-20250517174318102"></p>
+<p><strong>Notes:</strong></p>
+<p>The extent slot, slot 5 of a partition page, is an array of 8-byte entries, each of which describes one extent for the table. The information stored in each 8-byte extent entry consists of two 4-byte values: the logical page number (within the tblspace) of the start of the extent, and the offset of that page into the dbspace.</p>
+<p><code>extent slot（partition page 的第 5 slot）是一个 8 字节条目的数组，每个条目描述表的一个 extent。每个 8 字节 extent 条目中存储的信息由两个 4 字节值组成：extent 起始的逻辑页码（在 tblspace 中），以及该页在 dbspace 中的偏移量。</code></p>
+<p>For instance, consider the following entry in the extent slot shown in the slide above (the display format is modified to make interpretation easier):</p>
+<p><code>例如，请看上面幻灯片中显示的 extent slot 中的以下条目（为便于解释，对显示格式进行了修改）：</code></p>
+<p>​		0000 0020 0000 0665</p>
+<p>This entry describes an extent whose first page is located on the 1637th (0x665) page of dbspace number 1. With respect to the extent’s tblspace, the extent starts on logical page 32 (0x20).</p>
+<p><code>此条目描述了一个 extent，其首页位于 1 号 dbspace 的第 1637 (0x665) 页。对于该 extent 的 tblspace，该范围从逻辑页 32 (0x20) 开始。</code></p>
+<p>Every extent slot ends with an <em>on-deck</em> or <em>cap</em> extent entry, one poised to accept the dbspace offset of the next allocated extent. Serving as a kind of cap on the array, the last extent entry contains the logical page number for the next extent to be allocated, and a null value to act as placeholder for the dbspace offset for that extent.</p>
+<p><code>每个 extent slot 最后都有一个 on-deck 或 cap  extent条目，准备接受下一个分配 extent 的 dbspace 偏移量。作为数组的一种上限，最后一个 extent 条目包含下一个要分配的 extent 的逻辑页码，以及一个空值，作为该 extent 的 dbspace 偏移量的占位符。</code></p>
+<blockquote>
+<p>poised 英[pɔɪzd] 美[pɔɪzd]<br>adj. 摆好姿势准备行动的</p>
+</blockquote>
+<p><strong>Slot 6: Page Versioning</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505171849672.png" alt="image-20250517184920542"></p>
+<p><strong>Notes:</strong></p>
+<p>If a table is altered and the database server is able to alter the table in-place, then an additional slot is required to handle the versioning of extents in the tblspace.</p>
+<p><code>如果更改了表，且 server 能够就地更改表，则需要一个额外的 slot 来处理 tblspace 中 extent 的版本管理。</code></p>
+<p>An <em>in-place alter</em> occurs when an ALTER TABLE command is executed and the changes to the table structure do not require a table rebuild. Instead, the database server simply records the change on an additional page in the tblspace tblspace. This page is an extension of the partition page and the only slot on this page is identified as <em>slot 6</em>. The logical page number of the new page is placed in the <strong>pg_next</strong> field in the header of the original <em>partition</em> page.</p>
+<p><code>当执行 ALTER TABLE 命令，表结构的更改不需要重建表时，就会发生就地更改。此时，server 只需在 tblspace tblspace 中的一个附加页面上记录更改。该页面是 partition page 的扩展，页面上唯一的 slot 被标识为 slot 6。新页面的逻辑页码放在原始 partition 页头的 pg_next 字段中。</code></p>
+<p>chatgpt 和 gemini 都将 Instead 翻译成”此时“，DeelL翻译成”相反“感觉确实不合适</p>
+<p>If a row in the altered table is updated and there is room on the page for all rows to be converted to the new version, then all rows are updated and the new version is recorded on the page. If there is not enough room for all rows on the page to be reversioned, then the updated row is altered and moved to a page that only contains rows of the same version. The version number is recorded in the <strong>pg_next</strong> field in the header of each <em>data</em> page.</p>
+<p><code>如果修改后的表中的某一行被更新，并且页面上有足够的空间将所有行转换为新版本，那么所有行都会被更新，并且新版本信息会被记录在该页面上。如果页面空间不足，无法对所有行进行版本转换，则更新的那一行会被修改并移动到一个仅包含相同版本行的页面中。版本号会被记录在每个数据页（data page）页头的 pg_next 字段中。</code></p>
+<blockquote>
+<p>chagpt</p>
+<h3 id="一、表结构更改会引入“版本”概念"><a href="#一、表结构更改会引入“版本”概念" class="headerlink" title="一、表结构更改会引入“版本”概念"></a>一、表结构更改会引入“版本”概念</h3><p>当你使用 <code>ALTER TABLE</code>（比如增加列、修改字段类型）修改表结构时，如果数据库支持 <strong>in-place alter</strong>，它不会立即重建整张表，而是通过“版本管理”来处理这种变化。</p>
+<p>也就是说：</p>
+<ul>
+<li>表的旧结构是“版本1”；</li>
+<li>修改后生成一个“版本2”的结构；</li>
+<li>原先的旧行仍然保持版本1的格式，直到被访问或更新。</li>
+</ul>
+<hr>
+<h3 id="二、为什么更新一行可能会影响整页？"><a href="#二、为什么更新一行可能会影响整页？" class="headerlink" title="二、为什么更新一行可能会影响整页？"></a>二、为什么更新一行可能会影响整页？</h3><p>Informix 之类的数据库系统出于 <strong>存储和性能优化考虑</strong>，往往会这样设计：</p>
+<blockquote>
+<p><strong>同一个数据页（data page）中尽量只存储相同结构版本的记录。</strong></p>
+</blockquote>
+<p>这就意味着：</p>
+<ol>
+<li>如果一页中原本存储的全是版本1的行；</li>
+<li>你更新了其中的一行（让它变成了版本2）；</li>
+<li>数据库会检查这一页是否有足够空间，把<strong>这整页中的所有行都转换成版本2</strong>；</li>
+<li>如果空间够，就一并转换并更新页面元数据；</li>
+<li>如果空间不够，只更新这一行，并把它迁移到一个专门存放版本2记录的新页中。</li>
+</ol>
+<hr>
+<h3 id="三、这样做的目的是什么？"><a href="#三、这样做的目的是什么？" class="headerlink" title="三、这样做的目的是什么？"></a>三、这样做的目的是什么？</h3><p>主要是为了：</p>
+<ul>
+<li><strong>简化行的读取逻辑</strong>：读取时不需要一行一行地判断是哪个版本；</li>
+<li><strong>提高性能</strong>：相同版本的行可以共享解析逻辑，减少额外开销；</li>
+<li><strong>支持表结构的动态演进</strong>，避免一次性重写整表带来的高成本。</li>
+</ul>
+</blockquote>
+<p>Since a table can be altered several times, the database server uses <em>versioning</em> to keep track of which version of the table is used to describe the pages in an extent that contain updated rows.</p>
+<p><code>由于一张表可能会被多次修改，server 使用版本控制（versioning）来跟踪用于描述包含已更新行的 extent 中各页面所对应的表结构版本。</code></p>
+<p>Slot 6 contains the following information:</p>
+<p> <strong>•</strong> Version number</p>
+<p> <strong>•</strong> Number of columns added in this version</p>
+<p> <strong>•</strong> Number of pages that contain rows that have not been modified</p>
+<p> <strong>•</strong> Logical page number in the tblspace tblspace where descriptor information is stored</p>
+<p> <strong>•</strong> Uncompressed size of a row before the table was altered</p>
+<p> <strong>•</strong> Uncompressed size of a row after the table was altered</p>
+<p><strong>The Physical Log</strong></p>
+<p>Some important facts:</p>
+<p>– The physical log is used during fast recovery.</p>
+<p><code>物理日志用于快速恢复。</code></p>
+<p>– In most customer systems, the physical log is set too small causing checkpoints too occur too frequently.</p>
+<p><code>在大多数客户的系统中，物理日志设置得过小，导致检查点出现得过于频繁。</code></p>
+<p>– It can be moved outside the root dbspace, and usually should be.</p>
+<p><code>它可以移到 root dbspace 之外，通常也应该这样做。</code></p>
+<p><strong>Notes:</strong></p>
+<p>While the physical log might not be of much use in a system that runs perfectly every day of the year, it is crucial to Informix Dynamic Server’s fast recovery mechanism as well as its archiving algorithm, both of which can come in quite handy in the world of power failures and disk crashes that most of us inhabit.</p>
+<p><code>虽然物理日志在全年每天都完美运行的系统中可能用处不大，但它对 IDS 的快速恢复机制及其归档算法却至关重要，而在我们大多数人所处的这个充满断电和磁盘崩溃的现实世界中，这两者往往非常有用。</code></p>
+<blockquote>
+<p>inhabit 英[ɪnˈhæbɪt] 美[ɪnˈhæbɪt]<br>vt.居住在;栖居于;</p>
+</blockquote>
+<p>The initial size of the physical log is usually much too small, which can cause checkpoints to occur much too frequently. Sizing the physical log too small is a common mistake of novice administrators.</p>
+<p><code>物理日志的初始大小通常太小，这可能会导致检查点出现得过于频繁。将物理日志设置得过小是新手管理员常犯的错误。</code></p>
+<p><strong>Physical Log Page Structure</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505172010750.png" alt="image-20250517201048659"></p>
+<p><strong>Notes:</strong></p>
+<p>The slide above shows the structure of a physical log page. Pages in the physical log are identical to their pages of origin. The only way to tell that a page came from the physical log is by looking at the page address (offset and chunk). The page contains the address of the original page location and not the physical location within the physical log.</p>
+<p><code>上面的幻灯片展示了一个物理日志页的结构。物理日志中的页面与它们原始来源的页面是完全相同的。判断一个页面是否来自物理日志的唯一方法是查看其页地址（偏移量和chunk号）。该页面记录的是原始页面的位置地址，而不是其在物理日志中的实际物理位置。</code></p>
+<blockquote>
+<p>identical 完全相同的 英[aɪˈdentɪkl] 美[aɪˈdentɪkl]</p>
+</blockquote>
+<p><strong>Logical Log File Structure</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505172017022.png" alt="image-20250517201756936"></p>
+<p><strong>Notes:</strong></p>
+<p>Each logical log is a string of contiguous log pages. Each page within an individual log is numbered, beginning with 0. The location of that number on the page is shown in the next slide.</p>
+<p><code>每个逻辑日志由一串连续的日志页组成。每个日志中的页面都从编号 0 开始。该编号在页面中的位置将在下一张幻灯片中展示。</code></p>
+<p>上图就是一个逻辑日志，有一连串的逻辑日志页面，从编号0开始</p>
+<p>Keep in mind that a <em>log file</em> is an extent within a chunk that does not go anywhere and is constantly overwritten. A log file serves as the temporary home of a <em>logical log</em>, which is unique. It is the logical log, not the log file, that is backed up to tape.</p>
+<p><code>请记住，日志文件（log file）是位于某个 chunk 中的一个 extent，它不会被移动，并且会被不断覆盖。日志文件是某个逻辑日志（logical log）的临时存储位置，而每个逻辑日志都是唯一的。被备份到磁带上的，是逻辑日志，而不是日志文件。</code></p>
+<p>A logical log can contain any number of pages from one to the total number available in a log file.</p>
+<p><code>一个逻辑日志可以包含任意数量的页面，从1页到日志文件中可用的总页数。</code></p>
+<p>Logical log pages are manufactured one after another in the logical log buffer, and written out in series each time the buffer is flushed.</p>
+<p><code>逻辑日志页在逻辑日志缓冲区中逐个生成，并在每次刷新缓冲区时按顺序写出。</code></p>
+<blockquote>
+<p>manufacture<br>英[ˌmænjuˈfæktʃə(r)] 美[ˌmænjuˈfæktʃər]<br>vt.制造;产生(一种物质);生成;(用机器)大量生产;捏造;编造;成批制造;<br>n.批量生产;工业品;大量制造;</p>
+</blockquote>
+<p><strong>Logical Log Page Structure</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505172036583.png" alt="image-20250517203607494"></p>
+<p><strong>Notes:</strong></p>
+<p>The structure of a logical log page, as pictured above, might suggest the sequential method by which log records are generally accessed. Note for example that the page has no slot table. (The length of each record is stored within the record itself.) Note also that logical log data is very fluid, spilling from one page onto the next without fanfare (though a record must be fully contained within a log file). Even the page header has a few surprises.</p>
+<p><code>如上图所示，逻辑日志页的结构可能暗示了日志记录通常是以顺序方式访问的。比如，请注意该页面没有 slot table，因为每条记录的长度是保存在记录本身中的。还要注意，逻辑日志数据非常灵活，可以自然地从一个页面延伸到下一个页面（不过一条记录必须完整地存储在同一个日志文件中）。甚至页头也有一些惊喜。</code></p>
+<blockquote>
+<p>fluid英[ˈfluːɪd] 美[ˈfluːɪd]<br>n.液体;流体;液;<br>adj.流体的;流动的;不稳定的;易变的;流畅优美的;</p>
+<p>spilling 英[ˈspɪlɪŋ] 美[ˈspɪlɪŋ]<br>v.(使)洒出，泼出，溢出;涌出;蜂拥而出;<br>n.木片，纸捻；洒出量；摔下，跌落;（Spilling）（挪、英、美）施皮林（人名）;</p>
+<p>fanfare 英[ˈfænfeə(r)] 美[ˈfænfer]<br>n.大张旗鼓;号角花彩，号角齐鸣(欢迎仪式等上奏的响亮短曲);(为庆祝而在媒体上的)喧耀;</p>
+</blockquote>
+<p><strong>pg_nslots</strong></p>
+<p>This is unused, since there is no real concept of slots on a log page.</p>
+<p><code>这是未使用的，因为日志页面上没有真正的slot概念。</code></p>
+<p><strong>pg_frcnt</strong></p>
+<p>This is always zero, even for pages that are not full (note that <strong>pg_frptr</strong> is accurate). The reason has more to do with coincidence than design.</p>
+<p><code>即使页面未满，该值也始终为0（请注意，pg_frptr 是准确的）。其原因更多是巧合，而非设计。</code></p>
+<p>下面解释为什么是0</p>
+<blockquote>
+<p>coincidence 巧合 英[kəʊˈɪnsɪdəns] 美[koʊˈɪnsɪdəns]</p>
+</blockquote>
+<p>Log pages within the log buffer are allowed to fill to the last byte, usually continuing the last record on the next page. So a large number of log pages are truly full, especially when buffered logging is used exclusively.</p>
+<p><code>日志缓冲区内的日志页可以填满到其最后一个字节，通常会将最后一条记录延续到下一页。因此，大量的日志页会真正地被完全填满，尤其是在只使用（或：专门采用）缓冲日志记录（buffered logging）的情况下。</code></p>
+<p>However, an early buffer flush, forced by a checkpoint or a commit record for a database with unbuffered logging, for example, tend to come at a time when the last page in the buffer is only partly full. Once flushed to the log file, a log page cannot be changed; additional records cannot be added to it. The reason even these pages have a <strong>pg_frcnt</strong> of 0 is this: just before the log buffer is flushed, the flushing process sets the value of <strong>pg_frcnt</strong> on the last page in the buffer to 0, making the page look artificially full in order to prevent another engine process from writing to the page while the I&#x2F;O is being performed.</p>
+<p><code>然而，例如由检查点 或 采用非缓冲日志记录的数据库的提交记录 所触发的提前缓冲区刷新，往往发生在缓冲区最后一页仅部分填充之时。日志页一旦刷新到日志文件便无法更改，也不能再向其添加额外记录。即便这些页面仅部分填充，其 pg_frcnt 值也为0，原因如下：在日志缓冲区刷新前夕，刷新进程会将缓冲区最后一页的 pg_frcnt 值设为0，从而人为地将该页标记为“已满”，以防止在I/O操作执行期间，其他引擎进程尝试写入该页。</code></p>
+<p><strong>pg_next</strong></p>
+<p>On a logical log page, this element of the page header contains the unique ID of the logical log.</p>
+<p><code>在逻辑日志页面上，页头的这一元素包含逻辑日志的唯一 ID。</code></p>
+<p><strong>pg_prev</strong></p>
+<p>On a logical log page, this element of the page header contains the page offset (similar to a logical page number) of the log page. Note that this is the offset within the log, and as always, page offsets begin with 0.</p>
+<p><code>在逻辑日志页中，页头的这一元素包含日志页的页面偏移量（类似于逻辑页码）。请注意，这是在日志中的偏移量，而页面偏移量总是以 0 开始。</code></p>
+<p><strong>Logical Log Position (Logpos)</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505172120865.png" alt="image-20250517212040764"></p>
+<p><strong>Notes:</strong></p>
+<p>Log records are uniquely addressed only within a particular logical log. The address used is called a <em>logical log position</em>, or <em>logpos</em> for short. It is a 4-byte integer code that describes the position of a log record in terms of a page offset and a byte offset. The page offset is with respect to the beginning of the log, and is indexed from 0. The byte offset is with respect to the beginning of the page, and is also indexed from 0, though because of the space taken by the page header, this value should never be less than 0x018.</p>
+<p><code>日志记录只能在特定逻辑日志中唯一寻址。使用的地址称为 logical log position，简称 logpos。它是一个 4 字节整数代码，用页面偏移和字节偏移来描述日志记录的位置。页面偏移量相对于日志的起始位置，索引从 0 开始。 字节偏移量相对于页面的起始位置，索引也从 0 开始，但由于页面头占用了空间，该值不应小于 0x018。</code></p>
+<p><strong>Hint</strong></p>
+<p>Assume you are told a logical log record is located in a logical log with a unique ID of 234 and a logpos of 0x12018. How would you find it? Using the more current of your two checkpoint&#x2F;logical log reserved pages in the root chunk, you could find the physical address of log number 234. Once at that page, you would offset 0x12 pages into the log to find the correct log page, then 0x018 bytes into that page to find the log record.</p>
+<p><code>假设有一条逻辑日志记录位于逻辑日志中，其唯一 ID 为 234，logpos 为 0x12018。你将如何找到它？使用 root chunk 中两个 checkpoint/logical log 保留页面中的最新页面，可以找到日志编号 234 的物理地址。找到该页面后，在日志中偏移 0x12 页，找到正确的日志页，然后在该页中偏移 0x018 字节，找到日志记录。</code></p>
  
       <!-- reward -->
       
@@ -754,7 +1170,7 @@ Extents
 <p><code>使用 oncheck -pP 的语法如上图所示。例如，要显示chunk 1 的第 0 页，请键入</code></p>
 <p>oncheck -pP 1 0</p>
 <p>To display logical page 0 (the first bitmap page) from partition number 0x0100022, type:</p>
-<p><code>要显示分区号 0x0100022 的逻辑页 0（第一个位图页），请键入</code></p>
+<p><code>要显示 partition number 0x0100022 的逻辑页 0（第一个位图页），请键入</code></p>
 <p>oncheck -pp 0x0100022 0</p>
 <p>这块只是介绍一下这2命令，下面有详细介绍</p>
 <p><strong>Logical page numbers</strong></p>
