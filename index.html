@@ -67,6 +67,115 @@
     
     
     <article
+  id="post-IX9111/4"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h2 itemprop="name">
+  <a class="article-title" href="/2025/05/18/IX9111/4/"
+    >IX9111 - Unit 4. Tblspaces</a> 
+</h2>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/05/18/IX9111/4/" class="article-date">
+  <time datetime="2025-05-18T08:31:08.000Z" itemprop="datePublished">2025-05-18</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/IX9111/">IX9111</a>
+  </div>
+ 
+    </div>
+      
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p><strong>The Physical Elements in a Tblspace</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505181632526.png" alt="image-20250518163231397"></p>
+<p><strong>Notes:</strong></p>
+<p>For the Informix Dynamic Server user who never has a reason to manage a database table below the SQL level, it might be useful to picture a table as simply as a series of data rows. But an IDS administrator must understand tables at the RSAM (Relational Sequential Access Method) level.</p>
+<p><code>对于那些从不需要在 SQL 层面之下管理数据库表的 IDS 用户而言，将表简单地看作是一系列数据行可能就足够了。但是，IDS 管理员必须在 RSAM（关系型顺序访问方法）级别上理解表。</code></p>
+<p>An Informix Dynamic Server database table is actually a logical combination of several physical elements:</p>
+<p><code>IDS 数据库表实际上是多个物理元素的逻辑组合：</code></p>
+<ol>
+<li><p>SQL level: any system catalog data related to the table (none, in the case of temp tables)</p>
+<p><code>与该表相关的任何系统 catalog 数据（对于临时表而言，则没有）。</code></p>
+</li>
+<li><p>RSAM level: one or more partition pages</p>
+<p><code>一个或多个 partition page</code></p>
+</li>
+<li><p>RSAM level: a number of extents</p>
+<p><code>若干 extent</code></p>
+</li>
+</ol>
+<p>A <em>tblspace</em> (or <em>partition</em>) is the logical collection of RSAM-level elements located in a single dbspace. A table can consist of one or more tblspaces, depending on if the table is fragmented.</p>
+<p><code>一个 tblspace（或 partition）是位于单个 dbspace 中的 RSAM 级元素的逻辑集合。一个表可以由一个或多个 tblspace 组成，具体取决于表是否分片。</code></p>
+<p><strong>How do these elements work together?</strong></p>
+<p>An <strong>sqlexec</strong> thread intent on accessing tblspace data must first read the system catalog information related to the table. For each table in a database, there is a corresponding row in <strong>systables</strong>. The row contains information such as the name of the table, various statistics, and a partition number (partnum). </p>
+<p><code>一个打算访问 tblspace 数据的 sqlexec 线程，首先必须读取与该表相关的系统目录（system catalog）信息。对于数据库中的每个表，systables 中都有一条对应的记录。该记录包含表名、各种统计信息以及一个分区号（partnum）等信息。</code></p>
+<p>The partnum describes the location of that table’s partition page. Among other information on that page are the physical locations of each extent in the table. From those addresses, the thread can easily find the tblspace extents.</p>
+<p><code>partnum 描述了该表 partition page 的位置。在该页所包含的其他信息中，还记录了表中每个 extent 的物理位置。通过这些地址，线程就可以轻松地找到 tblspace 的各个 extent。</code></p>
+<p><strong>The Database Tblspace</strong></p>
+<ul>
+<li><p>There is only one database tblspace in the system. It contains information about all databases</p>
+<p><code>系统中只有一个 database tblspace。它包含所有 database 的信息</code></p>
+</li>
+<li><p>The database tblspace partnum is always <strong>0x0100002</strong></p>
+<p><code>database tblspace partnum 始终为 0x100002</code></p>
+</li>
+<li><p>It resides in the root dbspace</p>
+<p><code>它位于 root dbspace</code></p>
+</li>
+<li><p>It can be viewed as a <strong>sysmaster</strong> table called <strong>sysdatabases</strong></p>
+<p><code>可将其视为一个 sysmaster 的表，叫做 sysdatabases</code></p>
+</li>
+</ul>
+<p><strong>Notes:</strong></p>
+<p>In the root dbspace, partition number 0x0100002 is a special tblspace that is used for tracking all the databases created in a database server. This is known as the <em>database</em> <em>tblspace</em>. It can be thought of as a special, internal database table that can grow just like any other table can. A <strong>sysmaster</strong> table called <strong>sysdatabases</strong> allows users to view the contents of this table, but the table cannot be modified.</p>
+<p><code>在 root dbspace 中，partnum 0x0100002 是一个特殊的 tblspace，用于跟踪 server 中创建的所有数据库。这就是 database tblspace。可以将其视为一个特殊的内部数据库表，它可以像其他表一样增长。sysdatabases 表允许用户查看该表的内容，但不能修改该表。</code></p>
+<p>The database tblspace is initially four pages in size, but additional extents can be allocated (as with any tblspace) as the need arises.</p>
+<p><code>数据库表空间（tablespace）初始大小为四页，但随着需求增长，可（如同任意 tblspace 一样）动态分配额外的 extents。</code></p>
+<blockquote>
+<p>arise 英[əˈraɪz] 美[əˈraɪz]<br>vi.发生;出现;(由…)引起;(因…)产生;发展;起床;（随着人走近而）逐渐显现;群起反对;</p>
+</blockquote>
+<p>The database tblspace contains all the information needed to identify any database created in the database server. Each row tracks the name of one database, its owner, the date and time of creation, flags related to its logging mode, and the partition number of <strong>systables</strong>. Once the server has found <strong>systables</strong>, all other tables in the database can be located.</p>
+<p><code>数据库 tblspace 包含识别 server 中创建的任何数据库所需的所有信息。每一行都跟踪一个数据库的名称、所有者、创建日期和时间、与日志模式相关的标志以及 systables 的 partition number。一旦 server 找到 systables，就能找到数据库中的所有其他表。</code></p>
+<p>The schema of the database tblspace includes a unique index on the database name.</p>
+<p><code>database tblspace 的模式（schema）中包含一个基于数据库名称的唯一索引。</code></p>
+<blockquote>
+<p>gemini 2.5 pro</p>
+<ul>
+<li><strong>“模式 (schema)”</strong> 在这里指的就是这个<strong>特殊的系统级表空间（或其内部的系统表）的结构</strong>。这个结构定义了它有哪些列（比如数据库名称、所有者、创建日期等）。</li>
+<li>句子强调了这个结构的一部分：<strong>“包含一个基于数据库名称的唯一索引”</strong>。这意味着在这个系统表空间（或其内部的系统表）的“数据库名称”这一列上，建立了一个唯一索引，以确保每个数据库的名称都是独一无二的。</li>
+</ul>
+</blockquote>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <footer class="article-footer">
+       
+    </footer>
+  </div>
+
+   
+    
+</article>
+
+    
+    <article
   id="post-IX9111/3"
   class="article article-type-post"
   itemscope
