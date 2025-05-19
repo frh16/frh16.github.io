@@ -146,6 +146,92 @@
 <li>句子强调了这个结构的一部分：<strong>“包含一个基于数据库名称的唯一索引”</strong>。这意味着在这个系统表空间（或其内部的系统表）的“数据库名称”这一列上，建立了一个唯一索引，以确保每个数据库的名称都是独一无二的。</li>
 </ul>
 </blockquote>
+<p><strong>Tblspace Extent Allocation</strong></p>
+<p>Speaking generally, when a tblspace requires more space, another extent of size NEXT SIZE is allocated. There are, however, three variations on this basic theme:</p>
+<p><code>一般而言，当表空间（tblspace）需要更多空间时，会分配一个大小为 NEXT SIZE 的 extent。不过，这一基本机制存在三种变体情况：</code></p>
+<p>– Extent size doubling</p>
+<p><code>extent size 翻倍</code></p>
+<p>– Extent size compliance – Not enough contiguous space for NEXT SIZE? The database server allocates what it can (but not less than 4 pages).</p>
+<p><code>extent 大小合规性检查 —— 若没有足够连续空间来分配 NEXT SIZE (所指定的 extent)？ server会分配其所能分配的空间量（但不少于 4 页）。</code></p>
+<p>– Extent concatenation</p>
+<p><code>extent 连接</code></p>
+<p><strong>Notes:</strong></p>
+<p>After the first extent allocated to a tblspace fills, the database server attempts to allocate another extent. The amount of space it allocates is normally equal to the size configured for subsequent extents (NEXT SIZE). However, the allocation mechanism is affected by these factors:</p>
+<p><code>在分配给 tblspace 的第一个 extent 填满后，server 会尝试分配另一个 extent。分配的空间大小通常等于为后续 extent 配置的大小（NEXT SIZE）。但是，分配机制会受到这些因素的影响：</code></p>
+<p><strong>•</strong> The number of existing extents</p>
+<p><code>现有 extent 的数量</code></p>
+<p><strong>•</strong> The availability of contiguous space</p>
+<p><code>连续空间的可用性</code></p>
+<p><strong>•</strong> The location of existing TBLspace extents</p>
+<p><code>现有表空间（TBLspace）中extents的位置</code></p>
+<p><strong>Extent size doubling</strong></p>
+<p>When the number of extents within a tblspace becomes large, Informix Dynamic Server attempts to compensate by doubling the value on the partition page. It doubles the next extent size after every 16 extents.</p>
+<p><code>当表空间（tblspace）内的 extents 数量变得庞大时，IDS 会尝试通过在分区页（partition page）上将相关值加倍来进行补偿。具体来说，在每分配完 16 个 extent 之后，它会将下一个 extent 的大小加倍。。</code></p>
+<blockquote>
+<p>compensate 补偿 英[ˈkɒmpenseɪt] 美[ˈkɑːmpenseɪt]</p>
+</blockquote>
+<p><strong>Not enough space for full extent</strong></p>
+<p>If the database server is unable to find the space requested for the extent in the first chunk of the dbspace, it searches the next chunk, and so on. If the server is unable to come up with enough space after searching the chunk free lists for all chunks in the dbspace, it settles for the largest available amount of contiguous space. If this is less than 4 pages, however, the allocation fails with an error indicating there is no free disk space available.</p>
+<p><code>如果 server 在数据库空间（dbspace）的第一个 chunk 中无法找到为该 extent 请求的所需空间，它会继续搜索下一个 chunk，依此类推。如果服务器在遍历数据库空间中所有chunk的 chunk free lists 后，仍无法找到足够大的空间，那么它会选择当前可用的最大连续空间进行分配。然而，如果这个最大连续空间的大小小于 4 页，那么分配操作将失败，并返回一个错误，指示没有可用的空闲磁盘空间。</code></p>
+<blockquote>
+<p>settle<br>英[ˈsetl]<br>美[ˈsetl]<br>v.解决(分歧、纠纷等);定居;（使）沉降，下陷，变得密实;(最终)决定，确定，安排好;结束(争论、争端等);付清（欠款）;（使）平静下来，安静下来，定下心来;殖民;降落;把…放好;使处于舒适的位置;<br>n.高背长椅(老式木家具，有扶手，座下多带柜);</p>
+</blockquote>
+<p><strong>Existing extent locations</strong></p>
+<p>When the database server allocates a new extent that is contiguous to the previously allocated extent, it does not create a new extent. Rather, it extends the size of the last one.</p>
+<p><code>当 server 分配一个与先前已分配 extent 相邻的新 extent 时，它并不会创建一个全新的 extent。相反，它会扩展最后一个 extent 的大小。</code></p>
+<p><strong>Extent Allocation Question</strong></p>
+<p>Suppose a tblspace has 5 extents. What do you think would happen if the next allocated extent were contiguous to the thirdextent? Is this a situation in which extent concatenation can beused?</p>
+<p><code>假设某个表空间（tblspace）已包含5个 extent。若接下来分配的extent与第三个 extent 在物理存储上直接相邻（contiguous），您认为会发生什么？这种场景是否属于可应用 extent concatenation 技术的情况？</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505192105922.png" alt="image-20250519210524805"></p>
+<p><strong>Notes:</strong></p>
+<p>Here is an example showing a tblspace with five extents. The server determines that the next extent can be allocated in the pages that immediately follow the third extent.</p>
+<p><code>以下示例展示了一个包含五个 extent 的表空间（tblspace）。server 判定，下一个 extent 可分配在与第三个 extent 物理地址直接相邻的后续存储页中。</code></p>
+<p><strong>Index Tblspaces</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505192109867.png" alt="image-20250519210937792"></p>
+<p><strong>Notes:</strong></p>
+<p>Indexes on tables created by users are stored in tblspaces that are separate from their base tables. An index tblspace can be stored in the same dbspace(s) as a data tblspace, or it can be created in a different dbspace. Indexes can also be fragmented into tblspaces located in different dbspaces.</p>
+<p><code>用户创建的表上的索引会存储在与基表相互独立的表空间（tblspace）中。索引表空间（index tblspace）可以与数据表空间（data tblspace）共享同一dbspace，也可以单独创建于其他dbspace。此外，索引还支持跨dbspace分片，即索引的不同部分可分布于多个tblspace（这些表空间可位于不同dbspace内）。</code></p>
+<p>Since indexes are stored in their own tblspaces, they also can be identified by a partition number. To find a partition number for an index, you can either run <strong>oncheck -pT</strong> on the table on which the index was created, or you can query the <strong>sysfragments</strong> database, as shown here:</p>
+<p><code>由于索引存储在独立的表空间（tblspace）中，因此它们也可通过**分区号（partition number）**进行标识。若要查询某个索引的分区号，您可通过以下两种方式实现：对索引所基于的表运行 oncheck -pT 命令 或 查询数据库的系统目录表 sysfragments（具体方法见下文示例）。</code></p>
+<p>​	SELECT HEX(partn) FROM sysfragments WHERE indexname &#x3D; “index_name”;</p>
+<p>Index extent sizes are not configurable; the size calculated for the index first and next extent sizes are based on the proportion of the key size in relation to the entire table. Index tblspaces use the same rules for adding extents as data tblspaces.</p>
+<p><code>索引的 extent 大小不可配置；系统为索引计算的首个 extent 和 next extent）的大小，是基于索引键（key）大小与整表数据规模的比例关系动态确定的。索引表空间（index tblspace）在分配新 extent 时，遵循与数据表空间（data tblspace）完全相同的规则。</code></p>
+<blockquote>
+<p>proportion 比例 英[prəˈpɔːʃn] 美[prəˈpɔːrʃn]</p>
+</blockquote>
+<p>Indexes created on system catalog tables are stored in the same tblspace as their base tables. Extents allocated to system catalog tables contain both data and index pages.</p>
+<p><code>在系统目录表（system catalog tables）上创建的索引会存储在与基表相同的表空间（tblspace）中。分配给系统目录表的 extents 会同时包含数据页（data pages）和索引页（index pages），即数据与索引共享同一存储单元。</code></p>
+<p><strong>Bitmap Pages</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505192223826.png" alt="image-20250519222314760"></p>
+<p><strong>Notes:</strong></p>
+<p>An Informix Dynamic Server thread searching for a place to insert data within a tblspace uses that table’s <em>bitmap</em> pages to quickly identify a page with sufficient space. Along with inserts, actions that require bitmap searches include:</p>
+<p><code>IDS 一个线程在表空间（tblspace）内搜索可插入数据的位置时，会利用该表的位图页（bitmap pages）快速定位具有足够空间的页。除插入操作外，需要执行位图搜索的其他操作还包括：</code></p>
+<p><strong>•</strong> Updates whose resulting <em>tuple</em> (the internal term for a row) no longer fits into the existing slot.</p>
+<p><code>更新操作导致生成的元组（tuple，即数据库内部对行的术语）无法再存入其原有的 slot。</code></p>
+<p><strong>•</strong> Index operations that allocate new&#x2F;free tblspace pages, such as B-tree splits and index creations.</p>
+<p><code>索引操作中需要分配新页或释放页的场景包括：B树分裂（B-tree splits）以及索引创建（index creations）等。</code></p>
+<p><strong>•</strong> Tblspace usage reports.</p>
+<p><code>Tblspace 使用报告。</code></p>
+<p><strong>•</strong> Index and data checkers (<strong>oncheck</strong>).</p>
+<p><code>索引与数据校验工具（oncheck）</code></p>
+<p><strong>Myth buster</strong></p>
+<p><code>误区澄清者</code></p>
+<p>Every tblspace extent does not begin with a bitmap page. That would be a considerable waste of space, since each bitmap page can describe thousands of pages. So where do second and third bitmap pages appear in a tblspace, if they exist?</p>
+<p><code>并不是每个表空间（tblspace）的 extent 都以一个位图页（bitmap page）开始。那样会造成相当大的空间浪费，因为每个位图页可以描述成千上万个页面。那么，如果存在第二个和第三个位图页，它们会出现在表空间的什么位置呢？</code></p>
+<p><strong>Displaying Data Tblspace Bitmap Pages</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505192247198.png" alt="image-20250519224746044"></p>
+<p><strong>Notes:</strong></p>
+<p>You can view the contents of a bitmap page by running <strong>oncheck -pp</strong>. The syntax for this command is:</p>
+<p><code>通过运行 oncheck -pp，可以查看位图页面的内容。该命令的语法为</code></p>
+<p>​		oncheck -pp <em>partnum</em> <em>logical_page_num</em></p>
+<p>In every tblspace, logical page 0 is the first bitmap page. For smaller tables, it is probably the only bitmap page. In the case of larger tables, there could be several others. To display the first bitmap page for a particular tblspace, determine the partition number for the table, then run the command:</p>
+<p><code>在每个 tblspace 中，逻辑页 0 是第一个位图页面。对于较小的表，它可能是唯一的位图页面。对于较大的表，可能还有其他几个页。要显示特定 tblspace 的第一个位图页面，请确定表的 partition number，然后运行该命令：</code></p>
+<p>​		oncheck -pp <em>partnum</em> 0</p>
+<p>As usual, the first two lines displayed by <strong>oncheck</strong> show the page header. Next, <strong>oncheck</strong>displays one or more rows containing 32 values, each bit value representing one page in the table. The row(s) of 32 values are always complete—padded with several 0 values if necessary—whether the table contains 4 pages or exactly 64.</p>
+<p><code>与往常一样，</code>oncheck<code> 输出的前两行会显示页头（page header）信息。 随后，</code>oncheck<code> 会输出一行或多行，每行包含 32 个位值（bit value），每个位值代表表中的一个页。 无论表包含 4 个页还是恰好 64 个页，这行（或多行）32 个位值始终是完整的——若不足 32 位，则会用若干个 0 值填充补齐。</code></p>
+<p>To the left of each row of bit values is a <em>page offset</em>, akin to the byte offset you have seen in the slot output from <strong>oncheck</strong>. This decimal number indicates which logical page number is represented by the first bit value in the row, as shown here:</p>
+<p><code>在每一行位值（bit value）的左侧，有一个页偏移量（page offset），类似于你在 oncheck 的 slot 输出中见过的字节偏移量（byte offset）。 这个十进制数表示该行中第一个位值所对应的逻辑页号（logical page number），具体示例如下：</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505192255582.png" alt="image-20250519225526534"></p>
  
       <!-- reward -->
       
