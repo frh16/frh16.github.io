@@ -232,6 +232,177 @@
 <p>To the left of each row of bit values is a <em>page offset</em>, akin to the byte offset you have seen in the slot output from <strong>oncheck</strong>. This decimal number indicates which logical page number is represented by the first bit value in the row, as shown here:</p>
 <p><code>在每一行位值（bit value）的左侧，有一个页偏移量（page offset），类似于你在 oncheck 的 slot 输出中见过的字节偏移量（byte offset）。 这个十进制数表示该行中第一个位值所对应的逻辑页号（logical page number），具体示例如下：</code></p>
 <p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505192255582.png" alt="image-20250519225526534"></p>
+<p><strong>Displaying Index Tblspace Bitmap Pages</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505202219055.png" alt="image-20250520221930894"></p>
+<p><strong>Notes:</strong></p>
+<p>Index tblspaces can contain bitmap pages, index pages, and free pages. Since the same bitmap value (8) is used to indicate both index pages and bitmap pages, the bitmap context is important. Page 0 is always a bitmap page, but all other pages with a bitmap value of 8 are index pages. If the table becomes so large that bitmap entries for index nodes fill the bitmap page, then another bitmap page is created.</p>
+<p><code>索引表空间（index tablespace）可以包含位图页（bitmap pages）、索引页（index pages）和空闲页（free pages）。由于使用相同的位图值（8）来同时表示索引页和位图页，因此位图上下文（即页面所处的具体情境或类别）就显得尤为重要。具体而言，页面0始终是位图页，而所有其他位图值为8的页面则均为索引页。如果表变得非常大，以至于用于索引节点的位图条目填满了当前的位图页，那么就会创建另一个位图页。</code></p>
+<p>To display the bitmap page for an index tblspace, you must first determine the partnum for the index. You can find this by either running <strong>oncheck -pT</strong> on the source table, or by querying the <strong>sysfragments</strong> system catalog.</p>
+<p><code>要显示某个索引表空间（index tblspace）的位图页，首先必须确定该索引的分区号（partnum）。你可以通过在源表上运行 oncheck -pT 命令来查找该分区号，或者通过查询系统目录表 sysfragments 来获取。</code></p>
+<p>The <strong>oncheck -pT</strong> command includes tblspace information for each index created on the table. An example is shown on the next page.</p>
+<p><code>oncheck -pT 命令会包含在表上创建的每个索引的表空间（tblspace）信息。下一页将展示一个示例。</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505202225828.png" alt="image-20250520222526762"></p>
+<p><strong>Displaying System Catalog Bitmap Pages</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505202226010.png" alt="image-20250520222622935"></p>
+<p><strong>Notes:</strong></p>
+<p>Unlike user-defined tables and indexes, each system catalog table and the indexes for the catalog are created in the same tblspace. The example above shows a bitmap page of a <strong>sysindexes</strong> table. Notice that data pages and index pages appear in the same bitmap. Indexes that share the same tblspace as their parent table are said to be <em>attached indexes</em>.</p>
+<p><code>与用户自定义的表和索引不同，每个系统目录表及其对应的索引都是在同一个表空间（tblspace）中创建的。上面的示例展示了 sysindexes 表的一个位图页。请注意，数据页和索引页会出现在同一个位图中。那些与其父表共享同一个表空间的索引被称为附属索引（attached indexes）。</code></p>
+<p>Indexes created by users are, by default, <em>detached</em> from their parent table. That is, they are created in separate tblspaces, as shown in previous examples. However, you can create indexes that are attached by using the IN TABLE option of the CREATE INDEX command.</p>
+<p><code>用户创建的索引在默认情况下是与其父表分离（detached）的，也就是说，它们是在单独的表空间（tblspaces）中创建的，正如之前的示例所示。然而，你可以通过使用 CREATE INDEX 命令的 IN TABLE 选项来创建与父表关联（即附属）的索引。</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505202230431.png" alt="image-20250520223030371"></p>
+<p><code>IDS 的第 11 版继续支持 DEFAULT_ATTACH 环境变量。当该变量设置为 1 时，所有创建的索引都会成为附属索引（即与父表关联）。不过，该变量在文档中已被标记为“已弃用”，未来版本可能不再支持。</code></p>
+<p><strong>Home Data Pages</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505212138685.png" alt="image-20250521213844555"></p>
+<p><strong>Notes:</strong></p>
+<p>Remainder pages and blobpages are types of data pages because they contain portions of rows. But the data in these types of pages is second-tier. Without <em>home rows</em> pointing to them, remainder pieces and blobs would be orphaned. The rowids used by an index refer only to home rows, and never to remainder pieces or blobs.</p>
+<p><code>剩余页（remainder pages）和大对象页（blobpages）均属于数据页类型，因为它们包含行数据的部分内容。不过，这些页面中的数据属于次级（非核心）数据。若没有“主行（home rows）”指向它们，剩余数据片段和大对象数据便会成为“无主（孤儿）”数据，无处可依。索引所使用的 rowid 仅指向主行，而绝不会指向剩余数据片段或大对象数据。</code></p>
+<p>The <em>data</em> pages we have been talking about are known internally as <em>home data pages</em>, in an effort to distinguish between home rows, and the second-tier data to which home rows can refer.</p>
+<p><code>我们一直在讨论的这些数据页在内部被称为主数据页（home data pages），这样做的目的是为了区分主行（home rows）以及主行可能引用的那些次级（第二层级）数据。</code></p>
+<p>这一节莫名其妙，基本不懂</p>
+<p><strong>Rowids</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505212145897.png" alt="image-20250521214559846"></p>
+<p><strong>Notes:</strong></p>
+<p>A <em>rowid</em> is a 4-byte code, decipherable only when displayed in hexadecimal notation. The format for a rowid is <strong>0xPPPPPPSS</strong> where the <strong>PPPPPP</strong>, the most significant 3 bytes, contain the logical page number of the row, and the <strong>SS</strong>, the least significant byte, contains the slot number that the row occupies on the page.</p>
+<p><code>rowid 是一个 4 字节的编码，只有在以十六进制格式显示时才能被解读。行标识符的格式为 0xPPPPPPSS，其中 PPPPPP（高 3 字节）表示该行所在的逻辑页号，而 SS（低 1 字节）则表示该行在页中所占用的 slot number。</code></p>
+<p>A home data page consists of a page header, a slot table, and slots containing data rows. To access a specific slot on a specific data page, one must either stumble upon it during a sequential scan, or pass RSAM the correct rowid.</p>
+<p><code>home data page 由页头（page header）、slot table 以及包含数据行的 slots 组成。若要访问特定数据页上的某个特定 slot，要么需在顺序扫描过程中偶然发现它，要么需向随机存储访问方法（RSAM，Random Storage Access Method）传递正确的 rowid。</code></p>
+<blockquote>
+<p>stumble upon 偶然发现 英[ˈstʌmbl əˈpɒn] 美[ˈstʌmbl əˈpɑːn]</p>
+</blockquote>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505212153391.png" alt="image-20250521215319325"></p>
+<p><code>上一张幻灯片展示了一个 home data page 的示例。该页是来自一个未命名 tblspace 的逻辑页 3。slot table 中的第 2 个条目指向了一个被高亮显示的 slot。因此，这个 home row 的 rowid 为 0x00000302，简化表示即为 0x302。</code></p>
+<p>别往上找，找不到对应</p>
+<p><strong>The Data Row: Just a Byte Stream</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505212209654.png" alt="image-20250521220956573"></p>
+<p><strong>Notes:</strong></p>
+<p>As you have had the opportunity to view Informix Dynamic Server data rows at the binary level, you may have noticed that columns are not aligned on any particular address boundaries. To a C programmer whose assumption is that rows in a tblspace are stored as C structures, this might come as a surprise.</p>
+<p><code>既然你已有机会从二进制层面查看 IDS 的数据行，那么你可能已经注意到，列数据并没有对齐到任何特定的地址边界。对于那些原本假设 tblspace 中的行是以 C 语言结构体形式存储的 C 语言程序员来说，这可能会让他们感到意外。</code></p>
+<p><strong>Structure alignment</strong></p>
+<p>On most computer architectures, the needs of the data bus dictate that an instance of the 11-byte C structure defined in the slide above be stored in memory, as shown on the right. The 1-byte element beginning the structure (<strong>a</strong>) is <em>aligned</em> on an integer boundary, meaning that the memory address of that byte is evenly divisible by 4. The next element (<strong>b</strong>), a 4-byte long integer, must also be aligned on an integer boundary. Therefore, <strong>b</strong> cannot be stored immediately following <strong>c</strong>, and 3 bytes of wasted space separate the two elements. Short integers like the next element must be aligned on short-integer boundaries. Luckily, the address directly following the previous element suffices for <strong>c</strong>. However, the next element (<strong>d</strong>) has to be separated from <strong>c</strong> by 2 bytes, in order to be aligned on an integer boundary. Thus, in this particular case, 16 bytes are used in memory to store 11 bytes of real data.</p>
+<p><code>在大多数计算机架构中，数据总线的需求决定了上一张幻灯片中定义的 11 字节 C 语言结构体实例在内存中的存储方式，就如同右侧所示的那样。结构体中以 1 字节元素开头的部分（a）是按整数边界对齐的，这意味着该字节的内存地址能够被 4 整除。接下来的元素（b）是一个 4 字节的长整型，它也必须按整数边界对齐。因此，b 不能紧跟在 a 之后存储，这两个元素之间需要浪费 3 字节的内存空间。像下一个元素这样的短整型（short integer）必须按短整型边界对齐。幸运的是，上一个元素之后的内存地址刚好满足 c 的对齐要求。然而，下一个元素（d）为了按整数边界对齐，必须与 c 间隔 2 字节。因此，在这个特定例子中，为了存储 11 字节的实际数据，内存中实际使用了 16 字节的空间。</code></p>
+<p><strong>Data row storage</strong></p>
+<p>In most cases, a Dynamic Server data row is not written, stored, or read as a C structure, but as a stream of bytes. Once read, the database server parses the bytes into separate columns based primarily on its knowledge of the schema. This binary method of storage not only saves space, but it puts total control of the data layout in the hands of the engine, making the Dynamic Server source code, and the data itself, more portable.</p>
+<p><code>在大多数情况下，server 的数据行并非以 C 语言结构体的形式进行写入、存储或读取，而是以字节流（stream of bytes）的形式来处理。server 在读取数据后，会主要依据对模式（schema）的了解，将这些字节解析为独立的列。这种二进制存储方式不仅节省了空间，还将数据布局的完全控制权交给了数据库引擎，从而使得 server 的源代码以及数据本身具有更高的可移植性。</code></p>
+<p><strong>VARCHAR Column Storage</strong></p>
+<ul>
+<li><p>Extra byte at beginning that contains data length</p>
+<p><code>在开头有一个额外的字节，用于存储数据长度</code></p>
+</li>
+<li><p>Maximum size: 255 characters (maximum length value is <strong>0xff</strong>)</p>
+<p><code>最大大小：255 个字符（最大长度值为 0xff）</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505222154583.png" alt="image-20250522215405444"></p>
+</li>
+</ul>
+<p><strong>Notes:</strong></p>
+<p>VARCHAR storage is easier to understand than it might look. The first rule to remember is that, because the length of the column data is variable, an extra byte is added to the head of the column to store that length. This might explain why the maximum size of a VARCHAR column is 255 characters. The <em>length</em> byte can store a maximum value of 0xFF, or 255. The second rule relates to the minimum size and the padding required when a column contains less than the minimum configured number of characters. Note that the <em>row</em> is padded, not the VARCHAR column.</p>
+<p><code>VARCHAR 类型的存储理解起来可能比看起来要简单。需要记住的第一条规则是，由于列数据的长度是可变的，因此在列的开头会额外添加一个字节来存储该长度。这或许可以解释为什么 VARCHAR 列的最大大小是 255 个字符。这个用于存储长度的字节最大可以存储的值是 0xFF，即 255。第二条规则与最小大小以及当列中包含的字符数少于配置的最小字符数时所需的填充有关。需要注意的是，进行填充的是 row（下段解释），而不是 VARCHAR 列本身。</code></p>
+<p>For example, pictured above are three rows of data from the same table, which consists of an INTEGER column (4 bytes), followed by a VARCHAR column configured with a maximum size of 20 bytes and a minimum of 5 bytes, followed by a SMALLINT column (2 bytes). In the first row, the VARCHAR column contains only 3 characters, reflected in the value of the length byte. The configured minimum is 5, however, so while the column data is compressed together into only 10 bytes, a total slot length of 12 is stored in the slot table, effectively <em>padding</em> the row by simply including whatever 2 bytes happen to be out beyond the data.</p>
+<p><code>例如，上图展示了来自同一张表的三行数据，这张表包含一个 INTEGER 列（占 4 字节），紧接着是一个配置了最大长度为 20 字节、最小长度为 5 字节的 VARCHAR 列，再接着是一个 SMALLINT 列（占 2 字节）。在第一行中，VARCHAR 列仅包含 3 个字符，这一点在长度字节的值中得到了体现。然而，由于配置的最小长度是 5 字节，所以尽管列数据被压缩到了仅 10 字节，但在 slot table 中存储的总 slot 长度却是 12 字节。这实际上是通过简单地包含超出数据部分的任意 2 字节来对行进行“填充”（padding）的。</code></p>
+<p>The data in the padding bytes does not matter because as Informix Dynamic Server reads the row, it can easily tell, based on the length byte preceding each VARCHAR column and the known sizes of all other columns, how many bytes to consider.</p>
+<p><code>填充字节中的数据并不重要，因为当 IDS 读取这行数据时，它能够很容易地根据每个 VARCHAR 列前面的长度字节以及所有其他列的已知大小，判断出需要考虑多少个字节。</code></p>
+<p>Note that no padding is required for row 2 or 3 because, in each case, the number of characters in the VARCHAR column meets or exceeds the configured minimum of 5.</p>
+<p><code>需要注意的是，对于第 2 行或第 3 行数据，并不需要进行填充，因为在每一种情况下，VARCHAR 列中的字符数都达到或超过了所配置的最小长度 5 字节。</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505222229057.png" alt="image-20250522222905998"></p>
+<p>The bytes added for padding can contain any values. The server knows they do not contain any meaningful information and does not bother to initialize the bytes.</p>
+<p><code>为填充而添加的字节可以包含任何值。服务器知道这些字节不包含任何有意义的信息，因此不会费心去初始化这些字节。</code></p>
+<p><strong>Forward Pointers for VARCHAR Rows</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505222250645.png" alt="image-20250522225020556"></p>
+<p><strong>Notes:</strong></p>
+<p>When a row containing a VARCHAR column is updated such that the VARCHAR column grows, as long as the page has room for the row’s expansion, no remainder page or forwarding pointer are needed. However, in the case of a home data page that is almost full, an expanding row is not able to remain intact on the home page.</p>
+<p><code>当包含 VARCHAR 列的一行数据被更新，导致该 VARCHAR 列的内容增长时，只要数据页还有足够的空间容纳这行数据的扩展，就不需要使用剩余页（remainder page）或 forwarding pointer。然而，如果该行数据所在的主数据页（home data page）几乎已满，那么扩展后的行数据就无法完整地保留在主数据页上。</code></p>
+<p>In this case, the <em>entire row</em> moves to a remainder page. All that is left in the original slot on the home data page is a 4-byte forwarding pointer.</p>
+<p><code>在这种情况下，整行数据会移动到一个剩余页（remainder page）上。而在主数据页（home data page）上原来的 slot 中，仅留下一个 4 字节的 forwarding pointer。</code></p>
+<p>Once a row has been forwarded to a remainder page like this, accessing the row of data involves 4 pointers.</p>
+<p><code>一旦一行数据像这样被转发到剩余页（remainder page）上，访问该行数据就需要涉及 4 个指针。</code></p>
+<ol>
+<li><p>The rowid addresses the original slot table entry on the home page.</p>
+<p><code>该 rowid 指向主数据页（home page）上原始 slot table 中的条目。</code></p>
+</li>
+<li><p>The slot table entry points to a forwarding pointer that has replaced the data row on the home page.</p>
+<p><code>该 slot table 条目指向一个 forwarding pointer，这个 forwarding pointer 已经替换了主数据页（home page）上原来的数据行。</code></p>
+</li>
+<li><p>The forwarding pointer is yet another rowid, which points to a slot table entry on the relevant remainder page.</p>
+<p><code>这个 forwarding pointer 实际上是另一个 rowid，它指向相关剩余页（remainder page）上的一个 slot table 条目。</code></p>
+</li>
+<li><p>The slot table entry on the remainder page points to the actual data row.</p>
+<p><code>remainder page 上的 slot table 条目指向实际的数据行。</code></p>
+</li>
+</ol>
+<p>根据之前讲的，前3个字节代表逻辑页号，最后1个字节代表 slot number</p>
+<p>0x603，逻辑页6，第3个slot</p>
+<p>0x701，逻辑页7，第1个slot</p>
+<p>下面解释 8004 的 8</p>
+<p>Note that a slot table entry that points to a slot containing a forwarding pointer is <em>flagged</em>with a special value: 0x8000 (however, the flag value shown for the slot in <strong>oncheck -pp</strong> is 2).</p>
+<p><code>需要注意的是，指向包含 forwarding pointer 的 slot 的 slot table 条目会被标记上一个特殊值：0x8000（然而，在 oncheck -pp 命令中显示该槽的标记值时为 2）。</code></p>
+<p>Also note that a deleted slot is indicated by a 0 length in its slot table entry.</p>
+<p><code>另外还需注意，slot table 条目中若长度为 0，则表示该 slot 已被删除。</code></p>
+<p><strong>Forward Pointers for Large Rows</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505232238710.png" alt="image-20250523223814560"></p>
+<p><strong>Notes:</strong></p>
+<p>For rows larger than a page, it is not practical to replace the entire home row with a forwarding pointer. Instead, the first 4 bytes are devoted to the forwarding pointer, followed by as much of the row as can fit on the home page. As usual, the value of the 4-byte forwarding pointer is a rowid that points to the first remainder piece.</p>
+<p><code>对于超过一页大小的行，用 forwarding pointer 完全替换 home row 上的整行数据并不实际。相反，行的前 4 个字节被用作 forwarding pointer，随后紧跟的是能容纳在主页上的尽可能多的行数据。和往常一样，这 4 字节 forwarding pointer 的值是一个 rowid，它指向 first remainder piece。</code></p>
+<blockquote>
+<p>practical 实际的 英[ˈpræktɪkl] 美[ˈpræktɪkl]</p>
+</blockquote>
+<p><strong>Big remainder pages</strong></p>
+<p>If the first remainder piece is too large to fit on an entire remainder page, a second 4-byte forwarding pointer is written on the remainder page, followed by as much of the remainder piece as possible, and so on until the entire row has been stored. This type of remainder page (one entirely taken up by a remainder piece and a forwarding pointer) is called a <em>b</em>i<em>g</em> <em>remainder page</em>.</p>
+<p><code>如果 first remainder piece  太大，无法完整地存放在一个 remainder page 中，那么会在该 remainder page 上写入第二个 4 字节的 forwarding pointer，随后紧跟的是能容纳在该剩余页上的尽可能多的 remainder piece 数据，以此类推，直到整行数据全部存储完毕。这种完全由一个 remainder piece 数据和一个 forwarding pointer 占据的 remainder page 被称为 big remainder page。</code></p>
+<p>Note that the slide above does <em>not</em> show a big remainder page.</p>
+<p><code>请注意，上面展示的幻灯片并未显示一个 big remainder page。</code></p>
+<p>Also note that the slot table entry for this home row is flagged with the value 0x8000 to indicate that the slot size of 0x7e0 includes a forwarding pointer as the first 4 bytes.</p>
+<p><code>另外还需注意，该 home row（即存储行初始部分数据的页）对应的 slot table 条目会被标记上值 0x8000，以此表明该 slot size 为 0x7e0，且其前 4 个字节包含一个 forwarding pointer。</code></p>
+<p><strong>Home Page With BLOB Descriptor</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505232310878.png" alt="image-20250523231039798"></p>
+<p><strong>Notes:</strong></p>
+<p>Informix Dynamic Server supports two different kinds of large objects: <em>simple large objects</em>(<em>blobs</em>) and <em>smart large objects</em> (<em>smart LOs</em>, or <em>smart blobs</em>). Only simple large objects can be stored in partition pages.</p>
+<p><code>IDS 支持两种不同类型的大对象：简单大对象（simple large objects，简称 blobs） 和 智能大对象（smart large objects，简称 smart LOs 或 smart blobs）。只有简单大对象可以存储在 partition page 中。</code></p>
+<p>The data in a blob column is never stored on home data pages with non-blob column data. Blobs are either segregated into different chunks, as when they are configured to reside in a blobspace, or forwarded to special <em>partition blobpages</em> within the tblspace (the default configuration). But because of the complexity of blob management, a lone 4-byte forwarding pointer on the home page describing only the blob’s location does not suffice. Instead, a 56-byte <em>descriptor</em> is stored on the home page in place of the blob data. Even a home row that has a NULL value in its blob column contains an entire 56-byte blob descriptor, albeit a dull one.</p>
+<p><code>BLOB（二进制大对象）列中的数据绝不会与非 BLOB 列的数据一起存储在 home data page 上。BLOB 数据要么被分隔到不同的 chunk 中（例如，当配置为位于blobspace 中时），要么被 forward 到表空间（tblspace，此为默认配置）内的特殊 partition blobpages 中。然而，由于 BLOB 管理的复杂性，仅在主页（home page）上放置一个孤零零的 4 字节 forwarding pointer 来描述 BLOB 的位置是不够的。相反，主页上会存储一个 56 字节的描述符（descriptor）来替代 BLOB 数据。即便某个主页行（home row）的 BLOB 列值为 NULL，它仍然会包含一个完整的 56 字节 BLOB 描述符，只不过这个描述符的内容是“无意义”的。</code></p>
+<p><strong>Partition blob</strong> </p>
+<p>Partition blobpages differ from blobspace blobpages in several important ways. Partition blobpages are more like other Dynamic Server pages; they are the same size (BUFFSIZE), whereas the blobspace blobpage size can be configured to any multiple of BUFFSIZE. Partition blobpages are modified in the shared memory buffer pool; blobspace blobpages are not. Partition blobpages are written to logical logs with their corresponding data row. Blobspace blobpages are not logged.</p>
+<p><code>partition blobpages 与 BLOB 空间 BLOB 页（blobspace blobpages）在几个重要方面存在差异。Partition blobpages 更类似于其他 Dynamic Server 页；它们大小相同（均为 BUFFSIZE），而 BLOB 空间 BLOB 页的大小可以配置为 BUFFSIZE 的任意整数倍。Partition blobpages 在共享内存缓冲池中进行修改；而 BLOB 空间 BLOB 页则不会在此处修改。Partition blobpages 会与其对应的数据行一同写入逻辑日志；而 BLOB 空间 BLOB 页则不会被记录到日志中。</code></p>
+<p><strong>BLOB Descriptor Structure</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505232331704.png" alt="image-20250523233146617"></p>
+<p><strong>Notes:</strong></p>
+<p>On the slide above is the layout of the 56-byte blob descriptor. This structure is not only stored on home data pages, but is used throughout the database server for various blob-related reading, writing, and manipulating activities. As a result, there are several elements included in the structure that store fascinating data for fleeting moments, but do not contain anything of interest when the blob descriptor is at rest, as it is on disk.</p>
+<p><code>上面幻灯片展示的是 56 字节 BLOB 描述符的布局结构。这种结构不仅存储在主数据页（home data pages）上，还在整个数据库服务器中用于各种与 BLOB 相关的读取、写入和操作活动。因此，这个结构体中包含若干元素——它们在某些瞬间可能存储着极具价值的数据，但当描述符处于静止状态（如存储在磁盘上时），这些元素就不再包含任何有意义的信息。</code></p>
+<p>The two-byte <strong>flags</strong> element of the descriptor structure contains any <em>one</em> of the following flag values:</p>
+<p><code>描述符结构中的两字节 flags 元素包含以下任意一个标志值：</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505232337332.png" alt="image-20250523233748283"></p>
+<p>In an upcoming exercise, you will use the <strong>oncheck -pD</strong> command to view and analyze the blob descriptor.</p>
+<p><code>在接下来的练习中，你将使用 oncheck -pD 命令来查看和分析 blob descriptor。</code></p>
+<p><strong>Partition Blobpages</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505242215041.png" alt="image-20250524221525914"></p>
+<p><strong>Notes:</strong></p>
+<p>A partition blob consists of one or more blob <em>pieces</em>. Blob data that is too large to fit on one partition blobpage is split into several blob pieces chained together with forwarding pointers. Like a chain of remainder pieces for a very large row, all but the last blob piece in a chain is given its own blobpage so that the fewest possible number of pages are involved.</p>
+<p><code>partition blob 由一个或多个 blob piece 组成。若大对象数据过大，无法容纳于单个partition blobpage 中，则会将其拆分为多个blob piece，并通过forwarding pointers将这些 piece 串联起来。这就好比针对超大行数据所形成的 a chain of remainder pieces，除链中的最后一个 blob piece 外，其余所有 blob piece 都会分配各自独立的 blobpage，以确保涉及的 blobpage 数量尽可能少。</code></p>
+<p>Above is a partition blobpage that contains two blob pieces. By definition, each of these blob pieces must be from a different blob.</p>
+<p><code>上图展示的是一个包含两个 blob piece 的 partition blobpage。根据定义，这两个 blob piece 必定来自不同的 blob。</code></p>
+<p>A blob piece consists of the blob data itself, preceded by 8 bytes of overhead related to forwarding.</p>
+<p><code>一个 blob piece 由 blob 数据本身以及其前面与 forwarding 相关的 8 字节开销（overhead）组成。</code></p>
+<p><strong>bstamp (2 bytes)</strong></p>
+<p>The blobstamp occupies the first two bytes of a blob piece. Blobstamps help Dynamic Server verify the consistency of a chain of blob pieces, which could involve hundreds of pages. Note that the blobstamp does not have to be the same value for all pieces in the chain.</p>
+<p><code>大对象时间戳（blobstamp）占据一个大对象片段（blob piece）的前两个字节。大对象时间戳有助于 Dynamic Server 验证由数百个页可能构成的大对象片段链的一致性。需要注意的是，该链中所有片段的大对象时间戳的值并不一定相同。</code></p>
+<p>A stamp for a particular blob piece simply has to match what was expected by the previous piece (or the descriptor itself, in the case of the first piece). Otherwise, expect this ISAM error:</p>
+<p><code>某个特定大对象片段（blob piece）的时间戳只需与前一个片段（或对于第一个片段而言，是与描述符本身）所预期的时间戳相匹配即可。否则，将会遇到以下 ISAM 错误：</code></p>
+<p>​		-164 ISAM error: TEXT or BYTE stamp is incorrect.</p>
+<p><strong>Next blobpage (4 bytes)</strong></p>
+<p>This element looks and functions exactly like the forwarding pointers you have already studied. It contains the rowid of the next blob piece in the chain, if one exists. The last blob piece in the chain has a <em>next blobpage</em> value of 0xffffffff.</p>
+<p><code>这个元素无论是看起来还是功能上都与你之前研究过的 forwarding pointers 完全一致。如果链中存在下一个大对象片段（blob piece），它会包含该片段的 rowid。而链中的最后一个大对象片段，其 next blobpage 的值会被设置为 0xffffffff，以此表示链的结束。</code></p>
+<p><strong>nbstamp (2 bytes)</strong></p>
+<p>This is the expected blobstamp for the next blob piece in the chain.</p>
+<p><code>这是链中下一个大对象片段（blob piece）所预期的大对象时间戳（blobstamp）。</code></p>
+<p><strong>oncheck -pT</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505242245718.png" alt="image-20250524224520621"></p>
+<p><strong>Notes:</strong></p>
+<p>The output from <strong>oncheck -pT</strong> is a super-set of the output from <strong>oncheck -pt</strong>. Information from the partition structure and the extent slot is displayed first, followed by quite a bit of useful information on the complexion of the tblspace, all of which is in decimal.</p>
+<p><code>oncheck -pT 命令的输出是 oncheck -pt 命令输出的超集。它会首先显示 partition structure 和 extent slot 的相关信息，随后会提供大量关于表空间（tblspace）状况的有用信息，所有这些信息均以十进制格式呈现。</code></p>
+<p>The first portion of this extra output for a sample table is shown in the slide above. It is a general usage report for the tblspace that tallies up the number of free pages, bitmap pages, index pages, home data pages, remainder pages and partition blobpages. (This sample table contains both VARCHARS and partition-resident blobs.) The 4-bit bitmap page is used to determine the relative fullness of the remainder pages and partition blobpages.</p>
+<p><code>上述幻灯片中展示了针对一个示例table，这部分额外输出的第一部分内容。它是一份关于表空间（tblspace）的通用使用情况报告，其中汇总了 free pages、bitmap pages、index pages、home data pages、remainder pages 以及 partition blobpages 的数量。（这个示例表中同时包含了 VARCHARS and partition-resident blobs）这里提到的 4-bit bitmap page 用于确定 remainder pages and partition blobpages 的相对填充程度。</code></p>
+<p>The total number of unused bytes on each data-related page type is tallied next.</p>
+<p><code>接下来会对每种与数据相关的页类型上未使用的字节总数进行汇总。</code></p>
+<p>If a table seems to be performing poorly, or using more space than one would expect, this report can be enlightening. For example, if <strong>oncheck -pT</strong> clearly shows that the table is using space inefficiently, a review of the schema might reveal that the row size is just 20 bytes more than the amount of unused space on every full data page, and that a 4 byte reduction in the row size would compact the table by 15%. It has happened.</p>
+<p><code>如果某个表看起来性能不佳，或者占用的空间超出了预期，那么这份报告可能会提供有价值的见解。例如，如果 oncheck -pT 报告清晰地显示出该表的空间使用效率低下，那么对表schema的审查可能会揭示出，row size 仅比每个满数据页上未使用的空间多出 20 字节，而如果将行大小减少 4 字节，就可以使表的占用空间减少 15%。这种情况确实发生过。</code></p>
  
       <!-- reward -->
       
