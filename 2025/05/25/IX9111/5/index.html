@@ -11,7 +11,7 @@
         name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1"
       />
-      <title>IX9111 |  blog</title>
+      <title>IX9111 - Unit 5. Index Architecture |  blog</title>
   <meta name="generator" content="hexo-theme-ayer">
       
       <link rel="shortcut icon" href="/favicon.ico" />
@@ -52,166 +52,166 @@
       
     <main class="content on">
       <section class="outer">
-  
-  
-  <article class="articles">
+  <article
+  id="post-IX9111/5"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
     
-    
-    <h1 class="page-type-title">IX9111</h1>
-    
-    
-  
-  
-  
-  
-  
-  
-  <div class="archives-wrap">
-    <div class="archive-year-wrap">
-      <a href="/archives/2025" class="archive-year">2025</a>
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  IX9111 - Unit 5. Index Architecture
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/05/25/IX9111/5/" class="article-date">
+  <time datetime="2025-05-25T13:12:33.000Z" itemprop="datePublished">2025-05-25</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/IX9111/">IX9111</a>
+  </div>
+ 
     </div>
-    <div class="archives">
       
-      <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2025/05/25/IX9111/5/" class="archive-article-date">
-  <time datetime="2025-05-25T13:12:33.000Z" itemprop="datePublished">05/25</time>
-</a>
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
        
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2025/05/25/IX9111/5/"
-    >IX9111 - Unit 5. Index Architecture</a> 
-</h2>
+  <p>163 - 167 页讲 <strong>B-Tree</strong>，跳过</p>
+<p><strong>B+ Trees</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505252131910.png" alt="image-20250525213144822"></p>
+<p><strong>Notes:</strong></p>
+<p>The ability to move right or left from a node to its adjacent node puts the <em>plus</em> in B+ tree. All Informix Dynamic Server indexes are B+ trees.</p>
+<p><code>从某个节点能够向左或向右移动到其相邻节点的能力，为B+树赋予了其特有的优势（这里的“plus”即指B+树相较于B树等结构的增强特性）。所有 IDS 的索引都是采用B+树结构实现的。</code></p>
+<p><strong>Node contents</strong></p>
+<p>A node page consists of slots, just as data pages do. A slot table is necessary on an index page because slots can vary in size, <em>not</em> because slots are accessed randomly. Unlike data rows, the slots on an index page are always read sequentially. Therefore, there is no rowid-type address that refers to a particular slot on a particular index node. This means an index page is not limited to 255 slots; it can contain as many slots as will fit. </p>
+<p><code>node page 由 slots 组成，这一点与数据页（data pages）相同。索引页（index page）上需要一个 slot table，这是因为 slot 的大小可能各不相同，并非因为槽是随机访问的。与数据行（data rows）不同，索引页上的槽总是按顺序读取的。因此，不存在指向特定索引节点上特定 slot 的 rowid 类型的地址。这意味着索引页并不局限于255个 slot；它可以包含尽可能多的 slot，只要这些 slot 能够容纳得下。</code></p>
+<p>Though they can vary greatly in size, every slot in a node page is essentially the same structure: a key value followed by a series of references. (A unique index has only one reference per key.) Each reference <em>points down</em> to another part of the tree. The type of reference depends on the index level occupied by the node.</p>
+<p><code>尽管 node page 中的每个 slot 在大小上可能存在很大差异，但它们本质上具有相同的结构：一个键值（key value）后面跟着一系列引用（references）。（唯一索引（unique index）中，每个键值仅对应一个引用。）每个引用都指向树中的另一部分。引用的类型取决于节点在索引层级中所处的位置。</code></p>
+<p><strong>Questions</strong></p>
+<p>How do Dynamic Server nodes point down? </p>
+<p><code>Dynamic Server节点是如何向下指向的？</code></p>
+<p>A node points down either to data rows that are referenced by rowid, or to nodes that are referenced by logical page number.</p>
+<p><code>一个节点要么向下指向通过 rowid 引用的数据行，要么向下指向通过逻辑页号（logical page number）引用的其他节点。</code></p>
+<p>How do Dynamic Server nodes point across?</p>
+<p><code>Dynamic Server节点是如何横向指向（或相互连接）的？</code></p>
+<p>Here is where those omnipresent <strong>pg_next</strong> and <strong>pg_prev</strong> elements in the Dynamic Server page header come in. Picture an index node whose logical page number is 0x9, and whose adjacent node to the right is logical page 0x4a. In the header of node 0x9, <strong>pg_next</strong> is 0x4a. In the header of node 0x4a, <strong>pg_prev</strong> is 0x9. (An index page’s <em>node</em> <em>number</em> is simply its logical page number.)</p>
+<p><code>这时，Dynamic Server页头中无处不在的 pg_next 和 pg_prev 元素就派上用场了。想象一下，有一个索引节点，其逻辑页号为0x9，而其右侧的相邻节点的逻辑页号为0x4a。在节点0x9的页头中，pg_next 的值就是0x4a。同样，在节点0x4a的页头中，pg_prev 的值就是0x9。（索引页的 node number 实际上就是其逻辑页号。）</code></p>
+<p><strong>The Tree After Clustering the Index</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505252154178.png" alt="image-20250525215457105"></p>
+<p><strong>Notes:</strong></p>
+<p>Although index nodes might in reality be scattered haphazardly throughout the table, they are always drawn in their idealized B+ tree arrangement. The data pages to which they refer, however, have been drawn in previous slides as they would likely be arranged physically on disk, in an order unrelated to the index.</p>
+<p><code>尽管索引节点在实际存储中可能零散分布在表的各处，但在图示中，它们始终以理想的B+树结构呈现。而它们所指向的数据页（如前几页幻灯片所示），则更接近磁盘上的物理存储排列方式，其顺序与索引逻辑无关。</code></p>
+<p>Clustering the index temporarily changes the picture as shown. Although the index nodes could have shifted around physically in the rewritten table, by definition the B+ tree picture stays the same. But the data pages are now physically rearranged such that their true order is the ideal order.</p>
+<p><code>聚簇索引会暂时改变图示的存储布局。尽管在表重写后，索引节点的物理位置可能已发生变动，但根据定义，其B+树的逻辑结构保持不变。而此时，数据页会按索引的理想顺序重新物理排列，使得实际存储顺序与逻辑顺序完全一致。</code></p>
+<p>Of course, forcing the data pages to fit nicely into this picture does more than make the slide easier to read. It can improve the efficiency of the index&#x2F;data combination by reducing the amount of I&#x2F;O when scanning for a range of values, and reducing the expense of the I&#x2F;O that is performed.</p>
+<p><code>当然，将数据页强制对齐到这种理想布局的作用远不止让幻灯片更易读。它还能通过减少范围扫描时的I/O操作量，以及降低所执行I/O操作的开销，来提高索引与数据组合的效率。</code></p>
  
-
-    </header>
-    
-      
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/IX9111/">IX9111</a>
-  </div>
-
-    
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2025/05/18/IX9111/4/" class="archive-article-date">
-  <time datetime="2025-05-18T08:31:08.000Z" itemprop="datePublished">05/18</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2025/05/18/IX9111/4/"
-    >IX9111 - Unit 4. Tblspaces</a> 
-</h2>
- 
-
-    </header>
-    
-      
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/IX9111/">IX9111</a>
-  </div>
-
-    
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2025/05/09/IX9111/3/" class="archive-article-date">
-  <time datetime="2025-05-09T13:44:05.000Z" itemprop="datePublished">05/09</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2025/05/09/IX9111/3/"
-    >IX9111 - Unit 3. Dbspace Layout</a> 
-</h2>
- 
-
-    </header>
-    
-      
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/IX9111/">IX9111</a>
-  </div>
-
-    
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2025/05/05/IX9111/2/" class="archive-article-date">
-  <time datetime="2025-05-05T14:00:00.000Z" itemprop="datePublished">05/05</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2025/05/05/IX9111/2/"
-    >IX9111 - Unit 2. The Dynamic Server Page</a> 
-</h2>
- 
-
-    </header>
-    
-      
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/IX9111/">IX9111</a>
-  </div>
-
-    
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2025/04/26/IX9111/1/" class="archive-article-date">
-  <time datetime="2025-04-26T13:30:01.000Z" itemprop="datePublished">04/26</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2025/04/26/IX9111/1/"
-    >IX9111 - Unit 1. Introduction</a> 
-</h2>
- 
-
-    </header>
-    
-      
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/IX9111/">IX9111</a>
-  </div>
-
-    
-    
-  </div>
-</article>
-      
+      <!-- reward -->
       
     </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://frh16.github.io/2025/05/25/IX9111/5/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+    </footer>
   </div>
-  
-  
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2025/05/18/IX9111/4/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">IX9111 - Unit 4. Tblspaces</div>
+      </a>
+    
+  </nav>
 
   
+   
+    
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
 </section>
       <footer class="footer">
   <div class="outer">
@@ -331,6 +331,22 @@
 <script src="/js/lazyload.min.js"></script>
 
 <!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
 
 <script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
 <link
