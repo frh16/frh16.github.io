@@ -127,6 +127,74 @@
 <p><code>聚簇索引会暂时改变图示的存储布局。尽管在表重写后，索引节点的物理位置可能已发生变动，但根据定义，其B+树的逻辑结构保持不变。而此时，数据页会按索引的理想顺序重新物理排列，使得实际存储顺序与逻辑顺序完全一致。</code></p>
 <p>Of course, forcing the data pages to fit nicely into this picture does more than make the slide easier to read. It can improve the efficiency of the index&#x2F;data combination by reducing the amount of I&#x2F;O when scanning for a range of values, and reducing the expense of the I&#x2F;O that is performed.</p>
 <p><code>当然，将数据页强制对齐到这种理想布局的作用远不止让幻灯片更易读。它还能通过减少范围扫描时的I/O操作量，以及降低所执行I/O操作的开销，来提高索引与数据组合的效率。</code></p>
+<p><strong>A One-Level Index</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505262025860.png" alt="image-20250526202545746"></p>
+<p><strong>Notes:</strong></p>
+<p>An Informix Dynamic Server index that refers to a small number of data rows requires only one node, and therefore only one node level: the root. The root node alters the structure of its contents to point directly to data rows instead of to nodes.</p>
+<p><code>对于一个引用少量数据行的 IDS 索引而言，它仅需一个节点，因此也只有一个节点层级，即根节点。该根节点会调整其内容结构，使其直接指向数据行，而非指向其他节点。</code></p>
+<p><strong>A Two-Level Index</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505262028127.png" alt="image-20250526202809034"></p>
+<p><strong>Notes:</strong></p>
+<p>In order to show all the named levels of a B+ tree (root, branch, leaf), we have been picturing 3-level indexes all along. But an Informix Dynamic Server index that refers to a moderate number of data rows (roughly between 300 and 100,000) requires only two node levels: root and leaf.</p>
+<p><code>为了展示 B+ 树中所有命名的层级（根节点、分支节点、叶子节点），我们一直以来都以三层索引为例进行说明。然而，对于一个引用中等数量数据行（大约在 300 行到 100,000 行之间）的 IDS 索引而言，它仅需要两个节点层级：根节点和叶子节点。</code></p>
+<p><strong>The Generic Index Node</strong></p>
+<p><img src="C:\Users\49491\AppData\Roaming\Typora\typora-user-images\image-20250526203330803.png" alt="image-20250526203330803"></p>
+<p><strong>Notes:</strong></p>
+<p>Index nodes come in several different flavors, but there are many things that can be said about them in general. </p>
+<p><code>索引节点有几种不同的类型，但总体而言，关于它们有很多可以阐述的共性内容。</code></p>
+<p>Perhaps you can see from the slide above that an Informix Dynamic Server index node is structured similarly to a data page. Each slot on the page is described by one 4-byte slot table entry, which, as usual, contains a byte offset into the page and a length. But where each slot on a data page stores a row of data, each slot on an index node contains an <em>index entry</em>. </p>
+<p><code>或许你可以从上面的幻灯片中看到，IDS 的索引节点结构与数据页的结构类似。页上的每个 slot 都由一个 4 字节的 slot table 条目来描述，该条目像往常一样，包含指向页内的字节偏移量和长度信息。不过，数据页上的每个 slot 存储的是一行数据，而索引节点上的每个 slot 则包含一个索引条目。</code></p>
+<p>There are two types of index entries: <em>leaf-type entries</em> and <em>twig-type entries</em>, but they do not mix; all nodes on a particular level of the index have either leaf-type or twig-type entries. We will describe the structure of each entry type on the next few pages.</p>
+<p><code>索引条目有两种类型：叶子类型条目（leaf-type entries）和枝节点类型条目（twig-type entries），但它们不会混合存在；索引中特定层级的所有节点要么只包含叶子类型条目，要么只包含枝节点类型条目。在接下来的几页中，我们将分别描述每种条目类型的结构。</code></p>
+<blockquote>
+<p>twig 英[twɪɡ] 美[twɪɡ]<br>n.细枝;嫩枝;小枝;<br>v.(突然地)懂得，理解，明白，意识到;</p>
+</blockquote>
+<p><strong>Page Flags for Index Pages</strong></p>
+<p>Index page flags:</p>
+<p>– 0x10 – B-tree node (on for all B-tree node types)</p>
+<p>– 0x20 – Root node</p>
+<p>– 0x40 – Branch (or twig) node</p>
+<p>– 0x80 – Leaf node</p>
+<p>And here is how they combine on real nodes:</p>
+<p>– 0x30 – Root node</p>
+<p>– 0x50 – Branch node</p>
+<p>– 0x70 – Root node; also acting as a twig (two-level index)</p>
+<p>– 0x90 – Leaf node</p>
+<p>– 0xb0 – Root node; also acting as a leaf (one-level index)</p>
+<p><strong>Notes:</strong></p>
+<p>The page flags on a node reveal the index level it occupies. The flags shown above are specific to index pages.</p>
+<p><code>节点上的页标志（page flags）揭示了该节点在索引中所处的层级。上述所示的标志是专门针对索引页的。</code></p>
+<blockquote>
+<p>occupy 占据 英[ˈɒkjupaɪ] 美[ˈɑːkjupaɪ]</p>
+<p>reveal 揭示 英[rɪˈviːl] 美[rɪˈviːl]</p>
+</blockquote>
+<p>Every index page has the first flag (0x10) set. And, depending upon the role the node plays in the index, it has one or more additional flags. For example, in a small index, the root node can also be a leaf node (giving it a flag setting of 0xb0, or 0x10 + 0x20 + 0x80).</p>
+<p><code>每个索引页都会设置第一个标志位（0x10）。此外，根据节点在索引中所扮演的角色，它还会设置一个或多个额外的标志位。例如，在一个小型索引中，根节点也可以同时是叶子节点（此时其标志位设置为 0xb0，即 0x10 + 0x20 + 0x80）。</code></p>
+<p><strong>The Root-Leaf Node</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505262050829.png" alt="image-20250526204942852"></p>
+<p><strong>Notes:</strong></p>
+<p>Let us look closely at the root node of a one-level index.</p>
+<p><code>让我们仔细研究一下单层索引的根节点。</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505262201528.png" alt="image-20250526220154376"></p>
+<p><code>除了页类型为 0xb0（表示该页既是节点页，又是根节点页，还是叶子节点页）且没有相邻的兄弟节点之外，它的结构与叶子节点完全相同，每个 slot 中都包含一个叶子类型的条目。</code></p>
+<p>Each leaf-type entry, also known as an <em>index item</em>, contains the following components:</p>
+<p><code>每个叶子类型的条目，也称为索引项（index item），包含以下组成部分：</code></p>
+<p> <strong>•</strong> A key value.</p>
+<p> <strong>•</strong> One or more rowids. A duplicate index can have multiple rowids in a leaf-type entry. A unique index can have only one rowid per entry. The index page shown in the example above must be a duplicate index, because the third index item has two rowids.</p>
+<p><code>一个或多个rowid。在重复索引（duplicate index）中，一个叶子类型的条目可以包含多个 rowid；而在唯一索引（unique index）中，每个条目只能包含一个 rowid。上述示例中展示的索引页必定是一个重复索引，因为第三个索引项中包含两个行标识符。</code></p>
+<blockquote>
+<p>gemini</p>
+<p>“duplicate index”（或者更准确地说，是 “允许重复值的索引” 或 “非唯一索引”）指的是<strong>索引列中允许存在重复值</strong>的索引。</p>
+</blockquote>
+<p><strong>•</strong> A delete flag (<strong>df</strong>) for each rowid listed. Rather than deleting a key value immediately, Informix Dynamic Server marks it as deleted by setting the delete flag to 1. The delete flag is only operational if the database is logged and the table is not locked in EXCLUSIVE MODE.</p>
+<p><code>对于列出的每个rowid，都有一个删除标志(df）。IDS 不会立即删除键值，而是通过将删除标志设置为 1 来标记该键值为已删除。不过，删除标志仅在数据库处于日志记录模式（logged）且表未以独占模式（EXCLUSIVE MODE）锁定的情况下才会生效。</code></p>
+<p>Except for data rows whose indexed column is null, each row in the tblspace has exactly one corresponding item in the index. Add another index to the tblspace, and the same rule applies to that index.</p>
+<p><code>除了那些索引列值为 NULL 的数据行之外，表空间（tblspace）中的每一行在索引中都有且仅有一个对应的条目。如果再为该表空间添加一个索引，那么同样的规则也适用于这个新索引。</code></p>
+<p><strong>Term review</strong></p>
+<p>These many similar index terms have probably begun to get confusing. An Informix Dynamic Server index is made of index pages, called <em>nodes</em>. Index nodes contain <em>index</em> <em>entries</em>: one per slot. There are two types of index entries. The entry type found on the last level of an index is called a <em>leaf-type entry</em>. Leaf-type entries have a slightly different structure than do <em>twig-type entries</em>, which are found on all non-leaf levels of an index. We will describe the structure of twig-type entries in a few pages.</p>
+<p><code>如此众多的相似索引术语可能已开始让人感到困惑。IDS 的索引由索引页构成，这些索引页被称为 节点。索引节点包含 索引条目，每个 slot 对应一个索引条目。索引条目分为两种类型。位于索引最后一层的条目类型称为 叶型条目。叶型条目的结构与位于索引所有非叶层的 枝型条目 略有不同。我们将在后续几页中介绍枝型条目的结构。</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505262247826.png" alt="image-20250526224716736"></p>
+<p><code>尽管上面准确描绘了每个 4 字节 rowid 的大小，但所显示的 key 值大小（3 字节）是随意选定的。</code></p>
  
       <!-- reward -->
       
