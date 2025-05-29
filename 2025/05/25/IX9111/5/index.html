@@ -184,6 +184,201 @@
 <p><code>如此众多的相似索引术语可能已开始让人感到困惑。IDS 的索引由索引页构成，这些索引页被称为 节点。索引节点包含 索引条目，每个 slot 对应一个索引条目。索引条目分为两种类型。位于索引最后一层的条目类型称为 叶型条目。叶型条目的结构与位于索引所有非叶层的 枝型条目 略有不同。我们将在后续几页中介绍枝型条目的结构。</code></p>
 <p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505262247826.png" alt="image-20250526224716736"></p>
 <p><code>尽管上面准确描绘了每个 4 字节 rowid 的大小，但所显示的 key 值大小（3 字节）是随意选定的。</code></p>
+<p><strong>The Root-Leaf Node: oncheck –pp Output</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505272039907.png" alt="image-20250527203900751"></p>
+<p><strong>Notes:</strong></p>
+<p>Above is a real output from <strong>oncheck -pp</strong>, which is equivalent to the picture on the previous slide. The meaning of each slot on this particular root node should be clear. In this case, the indexed column is apparently a CHAR(3). Each key is stored in a separate slot in order of its value. A series of rowids is included in the same slot as the key value.</p>
+<p><code>以上是 oncheck -pp 的实际输出结果，其内容与上一张幻灯片中的图片等效。对于这个特定根节点上的每个 slot，其含义应当十分清晰。在此例中，被索引的列显然是一个 CHAR(3) 类型。每个键值都按其数值顺序存储在单独的slot中。而与键值处于同一 slot 的，还有一系列的 rowid。</code></p>
+<p>The first index entry in the output indicates that rowid 0x201 (the data row on logical page 2, slot 1) contains the character <strong>A</strong> in the indexed column.</p>
+<p><code>输出结果中的第一条索引条目表明，rowid 为 0x201（位于逻辑页 2 的 slot 1 的数据行）在被索引列中包含字符 A。</code>(0x41 -&gt; 97 -&gt; A)</p>
+<p>The third index entry indicates that two rows in the table contain the character <strong>C</strong> in the indexed column: one in slot 3 on page 2, and one in slot 4 on the same page.</p>
+<p><code>第三条索引条目表明，表中有两行数据在被索引列中包含字符 C：一行位于第 2 页的 slot 3，另一行位于同一页的 slot 4。</code></p>
+<p><strong>Key Value Storage</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505272049916.png" alt="image-20250527204923813"></p>
+<p><strong>Notes:</strong></p>
+<p>Key values in indexes are compared as binary entities, which makes the key comparison algorithm much quicker and more versatile. For example, key values that you and I happen to know are integers are not compared as integers, but as a series of 4 bytes:</p>
+<p><code>索引中的键值是以二进制实体的形式进行比较的，这使得键值比较算法更为迅速且通用。例如，你我恰好都知道是整数的那些键值，在比较时并不会被当作整数处理，而是被当作一系列的 4 字节数据来进行比较：</code></p>
+<p>Steps required to compare 0x12345678 with 0x12345679:</p>
+<ol>
+<li><p>0x12 vs. 0x12 (No winner. We will have to keep comparing.)</p>
+</li>
+<li><p>0x34 vs. 0x34 (Still no winner. Maybe next time.)</p>
+</li>
+<li><p>0x56 vs. 0x56 (Will this ever end?)</p>
+</li>
+<li><p>0x78 vs. 0x79 (Aha! The second stream of bytes is greater.)</p>
+</li>
+</ol>
+<p>The byte comparisons stop as soon as one of the two byte streams wins a comparison.</p>
+<p><code>一旦两个字节流中的某一个在比较中胜出，字节比较就会立即停止。</code></p>
+<p>Now, without some intervention, this algorithm would not work at all when comparing negative integers with positive ones, because of the way signed integers are normally stored in computer memory.</p>
+<p><code>现在，如果不进行某种干预，在比较负整数与正整数时，这个算法将完全无法正常工作，这是因为有符号整数在计算机内存中通常的存储方式所致。</code></p>
+<p><strong>Storing Integers in Columns: The Sign Bit</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505272058161.png" alt="image-20250527205856071"></p>
+<p><strong>Notes:</strong></p>
+<p>At the binary level, all integer values look positive. Bits are either on (1) or off (0). It is impossible to make a bit less than off, though no doubt someone has tried. For now, at least, negative values are represented using software tricks and storage conventions.</p>
+<p><code>在二进制层面上，所有的整数值看起来都是正数。比特位要么是 1，要么是 0。要让一个比特位处于比 0 更小是不可能的。至少在目前，负值是通过软件技巧和存储约定来表示的。</code></p>
+<p>Early on it was decided that in order to represent signed numbers in binary, the most significant bit would be used as a flag called the <em>sign bit</em>.</p>
+<p><code>早期人们就决定，为了在二进制中表示有符号数，将使用最高有效位作为标志位，称为符号位。</code></p>
+<p>For negative numbers, the sign bit is <em>on</em>. For positive numbers, the sign bit is <em>off</em>. The price of this trick is paid in storage capacity. For example, sacrificing the most significant bit for use as a sign bit reduces the highest possible positive value of a 4-byte integer from 0xffffffff (4,294,967,295) to 0x7fffffff (2,147,483,647).</p>
+<p><code>对于负数，符号位是1。对于正数，符号位是0。这种技巧的代价体现在存储容量上。例如，将最高有效位牺牲用作符号位后，一个4字节整数的最大可能正数值就从0xffffffff（即4,294,967,295）减少到了0x7fffffff（即2,147,483,647）。</code></p>
+<p>There is still more to this storage method than you might think, however. Although intuition might tell you that -2147483647 is the sign bit turned <em>on</em> for the value 2147483647, and would therefore be stored as 0xffffffff, in fact 0xffffffff is the value -1. To most computer chips, signed arithmetic is a much cleaner operation if the <em>odometer flips over</em> when you add 1 to -1:</p>
+<p><code>然而，这种存储方法背后的细节比你想象的要更多。尽管直觉可能会告诉你，-2147483647 是将 2147483647 的符号位开启后得到的值，因此可能会被存储为 0xffffffff，但实际上 0xffffffff 表示的是 -1。后边略。</code></p>
+<p>Getting back to the problem this storage method would cause our comparison algorithm, let us say we were trying to determine whether -1 was greater than 1. Obviously it is not. But as shown above, the integer value 1 is stored in computer memory as 0x00000001, whereas the integer value -1 is stored as 0xffffffff. If we stored these values the same way in our index, a comparison would come out heavily on the side of -1.</p>
+<p><code>回到这种存储方法给我们比较算法带来的问题上，假设我们试图判断 -1 是否大于 1。显然，它并不大于 1。但如上所述，整数值 1 在计算机内存中是以 0x00000001 的形式存储的，而整数值 -1 则是以 0xffffffff 的形式存储的。如果我们在索引中以同样的方式存储这些值，那么在进行比较时，结果会严重偏向于认为 -1 更大。</code></p>
+<p><strong>So what goes into our index?</strong></p>
+<p>The problem is solved by simply toggling the sign bit before we store the value in the key. A negative integer is stored in an index key with its sign bit turned <em>off</em>, and a positive integer has its sign bit turned <em>on</em>. For example the value -1, stored in the data row as 0xffffffff, is stored in the index as 0x7fffffff. The value 1, stored in the data row as 0x00000001, is stored in the index as 0x80000001. Now, as a byte stream, 1 beats -1 every time, and translating the key value back into an integer is just a matter of toggling the sign bit again.</p>
+<p><code>这个问题可以通过在将值存入键之前简单翻转符号位来解决。在索引键中，负整数以其符号位0的形式存储，而正整数则以其符号位1的形式存储。例如，在数据行中以 0xffffffff 形式存储的值 -1，在索引中则以 0x7fffffff 的形式存储。同样，在数据行中以 0x00000001 形式存储的值 1，在索引中则以 0x80000001 的形式存储。现在，作为字节流来看，1 在每次比较中都会胜过 -1，而将键值转换回整数，也只需再次翻转符号位即可。</code></p>
+<p><strong>The Root Node</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505272119410.png" alt="image-20250527211936330"></p>
+<p><strong>Notes:</strong></p>
+<p>The vast majority of root nodes do not lead double lives as leaves. Most real indexes have more than one level, which means that a root node normally points down to other nodes, not to data rows. The page flags on the index node pictured above indicate this is simply a root node.</p>
+<p><code>绝大多数根节点并不会同时作为叶子节点存在。大多数真实的索引结构都不止一层，这意味着根节点通常会指向其他节点，而不是直接指向数据行。上图所示索引节点上的页面标志表明，这仅仅是一个根节点(30)。</code></p>
+<p>The structure of each slot on this page, also called a t<em>wig-type entry</em>, is similar to the structure of a leaf-type entry; a key value is followed by a 4-byte reference. But there are important differences. For instance, in this case the reference is to a node number, which is simply the logical page number of another index node. (One cannot tell from the data on this page whether the node numbers refer to branch nodes or leaf nodes.) </p>
+<p><code>此页面上每个slot（也称为枝型条目）的结构与叶型条目的结构相似；一个键值后面跟着一个 4 字节的引用。但二者之间存在重要差异。例如，在这种情况下，该引用指向一个节点编号，而这个节点编号仅仅是另一个索引节点的逻辑页号。（仅凭此页面上的数据，无法判断这些节点编号指的是分支节点还是叶节点。）</code></p>
+<p>An odd variety of the twig-type entry is shown on this slide: a key-less last slot, a.k.a. the <em>mini-slot</em> or <em>infinity slot</em>. The node number contained in the infinity slot leads to key values that are not infinite, but are nonetheless greater than any key value on this index level. The last slot on each non-leaf level of an index is a mini-slot.</p>
+<p><code>本幻灯片展示了一种特殊的枝型条目变体：无键值的最后一个 slot，也被称为 mini slot 或 infinity slot。infinity slot 中包含的节点编号指向的键值并非无穷大，但这些键值仍大于本索引层级上的任何其他键值。索引结构中每个非叶层级的最后一个 slot 都是 mini-slot。</code></p>
+<p><strong>The Root Node: oncheck -pp Output</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505272138164.png" alt="image-20250527213817050"></p>
+<p><strong>Notes:</strong></p>
+<p>Above is the <strong>oncheck -pp</strong> output for a real root node. Translating what we find here, we know that:</p>
+<p><code>以上是针对一个真实根节点的 oncheck -pp 命令输出结果。解读我们在这里发现的信息，我们可以得知：</code></p>
+<ol>
+<li><p>Node 0x6 leads to all keys with a value less than or equal to <strong>LLLLLLLL</strong>.</p>
+<p><code>节点 0x6 指向所有键值小于或等于 LLLLLLLL 的条目。</code></p>
+</li>
+<li><p>Node 0xb leads to all keys with a value greater than <strong>LLLLLLLL</strong>, and less than or equal to <strong>aaaaaaaa</strong>.</p>
+<p><code>节点 0xb 指向所有键值大于 LLLLLLLL 且小于或等于 aaaaaaaa 的条目。</code></p>
+</li>
+<li><p>Node 0x5 leads to keys that are greater than <strong>aaaaaaaa</strong>, and less than or equal to <strong>mmmmmmmm</strong>.</p>
+<p><code>节点 0x5 指向所有键值大于 aaaaaaaa 且小于或等于 mmmmmmmm 的条目。</code></p>
+</li>
+<li><p>Node 0x9 leads to keys greater than <strong>mmmmmmmm</strong>, and less than or equal to <strong>ssssssss</strong>.</p>
+<p>略</p>
+</li>
+<li><p>Since this is the right-most node in level 0 (being the only node in level 0), its last slot contains a node number without a key, whose value is assumed to be infinite. The node number specified in the level-0 mini-slot leads to real key values, all of which are greater than <strong>ssssssss</strong>.</p>
+<p><code>由于这是第 0 层（也是唯一一层节点所在的层级）中最右边的节点，因此其最后一个 slot 包含一个不带键值的节点编号，该编号的值被假定为无穷大。第 0 层 mini-slot 中指定的节点编号指向实际的键值，这些键值均大于 ssssssss。</code></p>
+</li>
+</ol>
+<p><strong>The Branch Node</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505282107467.png" alt="image-20250528210710325"></p>
+<p><strong>Notes:</strong></p>
+<p>By definition, a branch node always points down to other nodes. Branch nodes have a page flag value of 0x50, and contain twig-type index entries.</p>
+<p><code>根据定义，分支节点（branch node）始终向下指向其他节点。分支节点的页标志（page flag）值为 0x50，并且包含枝状（twig-type）类型的索引条目。</code></p>
+<p>The basic twig-type entry is structured as follows:</p>
+<p><code>基本的枝状（twig-type）类型条目的结构如下：</code></p>
+<p>​		<em>key_value</em> <em>node_number</em></p>
+<p>The <em>key_value</em> is the same size as the key column value. The node number is 4 bytes.</p>
+<p><code>key_value 的大小与 key column value 相同。节点编号（node number）为 4 字节。</code></p>
+<p><strong>The Branch Node With Duplicates</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505282113914.png" alt="image-20250528211344798"></p>
+<p><strong>Notes:</strong></p>
+<p>A duplicate index that contains many items (rowids) per key might contain several leaf nodes per key. In this case, the twig-type entries in the branch nodes above those leaves have to contain more than one reference to a node number. A twig-type entry referencing three leaf nodes, all of which contain items (rowids) for the same key value, looks like this:</p>
+<p><code>对于每个 key 包含多个 rowid 的 duplicate index 而言，每个 key 可能包含多个叶子节点。在这种情况下，位于这些叶子节点上方的分支节点中的枝状类型条目必须包含对多个节点编号的引用。一个引用三个叶子节点的枝状类型条目（这三个叶子节点都包含针对同一键值的条目（rowids）如下所示：</code></p>
+<p>​		key value|<strong>rowid</strong>|<strong>node number</strong>|rowid|node number|node number</p>
+<p>This is the last rowid stored on this node number.</p>
+<p><code>这是存储在该节点编号上的最后一个 rowid。</code></p>
+<p>Note that at the leaf level, all rowids associated with a particular key value are sorted. The rowids mentioned in a twig-type entry like the one shown above, therefore, increase in value as you scan right, and Informix Dynamic Server can assume that the last node number in the entry contains rowids that are all greater than the last rowid in the entry.</p>
+<p><code>需要注意的是，在叶子层级，与特定键值相关联的所有 rowid 都是经过排序的。因此，在像上面所示的那种枝状类型条目中提及的 rowid，在从左到右扫描时会呈现递增趋势。IDS 可以据此假定，条目中的最后一个节点编号所包含的 rowid，其值均大于该条目（先前部分）中最后一个 rowid 的值。</code></p>
+<p><strong>The Branch Node: oncheck -pp Output</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505282132688.png" alt="image-20250528213209595"></p>
+<p><strong>Notes:</strong></p>
+<p>Above is the <strong>oncheck -pp</strong> output for a branch node. Analyzing what we find in the first slot, we can tell that:</p>
+<p><code>以上是针对一个分支节点执行 oncheck -pp 命令后输出的结果。通过分析第一个 slot 中的信息，我们可以得出以下结论（或可判断出以下情况） 。</code></p>
+<ol>
+<li><p>Key value <strong>a</strong> can be found in quite a few data rows. A total of 5 nodes below this one are filled with rowids associated with the key value <strong>a</strong>.</p>
+<p><code>键值 a 出现在许多数据行中。与该键值 a 相关联的 rowids 填满了其下方的总共 5 个节点。</code></p>
+</li>
+<li><p>Node 0x5 contains the lowest-valued rowids for the key. The last and greatest-valued rowid on that node is 0x8421.</p>
+<p><code>节点 0x5 包含该键值对应的最小 rowids。该节点上的最后一个（也是值最大的）rowid 是 0x8421。</code></p>
+</li>
+<li><p>Node 0x85 contains rowids for the key that are all greater than 0x8421. The last rowid on that node is 0x10642.</p>
+<p><code>节点 0x85 包含的该键值对应的所有 rowids 均大于 0x8421。该节点上的最后一个 rowid 是 0x10642。</code></p>
+</li>
+<li><p>Node 0x17 contains rowids that are all greater than 0x10642. The last rowid on that node is 0x1c98c.</p>
+<p><code>节点 0x17 包含的该键值对应的所有 rowids 均大于 0x10642。该节点上的最后一个 rowid 是 0x1c98c。</code></p>
+</li>
+<li><p>Node 0x1ca contains rowids greater than 0x1c98c. The last one on the node is 0x1cc84.</p>
+<p><code>节点 0x1ca 包含的该键值对应的所有 rowids 均大于 0x1c98c。该节点上的最后一个 rowid 是 0x1cc84。</code></p>
+</li>
+<li><p>Node 0x1cd contains all rowids for the key value that are greater than 0x1cc84.</p>
+<p><code>节点 0x1cd 包含的所有 rowids 均对应于键值且这些 rowid 的值均大于 0x1cc84。</code></p>
+</li>
+</ol>
+<p>不明白 branch node 为什么存 rowid？</p>
+<p><strong>The Leaf Node</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505282208212.png" alt="image-20250528220857112"></p>
+<p><strong>Notes:</strong></p>
+<p>By definition, leaf nodes point to data rows. The example of a root-leaf node presented earlier demonstrates references to the rowids of data rows.</p>
+<p><code>根据定义，叶节点指向数据行。之前展示的 root-leaf 节点示例就演示了对数据行 rowids 的引用。</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505282210187.png" alt="image-20250528221034107"></p>
+<p><code>上图所示的叶节点与之前分析的 root-leaf 节点之间存在两个差异。首先，这个叶节点有兄弟节点，因此 </code>pg_next<code>和</code>pg_prev<code> 分别包含指向右侧和左侧兄弟节点的节点编号。其次，页标志（0x90）表明这只是一个普通的叶节点，而不是 root-leaf 组合节点（页标志为 0xb0）。</code></p>
+<p><strong>The Leaf Node: oncheck -pp Output</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505282212001.png" alt="image-20250528221212843"></p>
+<p><strong>Notes:</strong></p>
+<p>Above is the <strong>oncheck -pp</strong> output for a leaf node. Analyzing what we find here, we can tell that:</p>
+<ol>
+<li><p>This is a duplicate index. Note that the index entry in slot 3 contains two rowids.</p>
+<p><code>这是一个 duplicate index。请注意，slot 3 中的索引条目包含两个 rowid。</code></p>
+<p>写错了，应该是 slot 4</p>
+</li>
+<li><p>The keys appear to be character data, and we could make an educated guess that the indexed column was a CHAR(5). Of course, Informix Dynamic Server does not need to guess. Based on the appropriate key descriptor on slot 4 of this table’s partition page, the database server knows what column type(s) make up this index key.</p>
+<p><code>这些键值看起来像是字符数据，我们可以合理推测被索引的列是 CHAR(5) 类型。当然，IDS 并不需要靠猜测来确定。根据该表 partition page 上 slot 4 的适当键描述符，server 能够确切知道构成该索引键的列类型。</code></p>
+</li>
+<li><p>The index entry in slot 1 indicates that we could find the key value <strong>AAACi</strong> in slot 0x9b on logical page 2.</p>
+<p><code>slot 1 中的索引条目表明，我们可以在逻辑页 2 的 slot 0x9b 处找到键值 AAACi。</code></p>
+</li>
+</ol>
+<p><strong>The Root Node: oncheck -pK Output</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505292201666.png" alt="image-20250529220135558"></p>
+<p><strong>Notes:</strong></p>
+<p>You can use <strong>oncheck -pK</strong> to produce what should now be a fairly readable report on all index nodes in a tblspace. Only the portion of a sample output that relates to the root node is shown above. The output for each node is topped with the following information.</p>
+<p><code>你可以使用 oncheck -pK 命令生成一份如今应相当易读的报告，该报告会展示 tblspace 中所有索引节点的相关信息。上面仅展示了与根节点相关的样本输出片段。每个节点的输出内容开头都会包含以下信息。</code></p>
+<p><strong>Level</strong></p>
+<p>(Decimal) The index level of the node. Index levels begin with 0.</p>
+<p><code>（十进制表示）该节点的索引层级。索引层级从 0 开始。</code></p>
+<p><strong>Node</strong></p>
+<p>(Hex) The node number (logical page number) of the node.</p>
+<p><code>（十六进制表示）该节点的节点编号（逻辑页号）。</code></p>
+<p><strong>Prev</strong></p>
+<p>(Hex) The value of <strong>pg_prev</strong> in the header of this node, which, if it is not 0, is the node number of the adjacent node to the <em>left</em>.</p>
+<p><code>（十六进制表示）该节点头信息中 pg_prev 的值，若此值不为 0，则表示相邻左侧节点的节点编号（逻辑页号）。</code></p>
+<p><strong>Next</strong></p>
+<p>(Hex) The value of <strong>pg_next</strong> in the header of this node, which, if it is not 0, is the node number of the adjacent node to the <em>right</em>.</p>
+<p><code>（十六进制表示）该节点头信息中 pg_next 的值，若此值不为 0，则表示相邻右侧节点的节点编号（逻辑页号）。</code></p>
+<p>After displaying this information, <strong>oncheck</strong> then sets up to display either twig-type entries, or leaf-type entries, in a very generic format. In the slide above, based on the page flags for the node, <strong>oncheck</strong> could sense the node contained twig-type entries. Neither entry is very long or complex, however. The first entry evidently contains the key value <strong>N</strong>, followed by the node number 0x2cd. Notice that the mini-slot is indicated by <strong>oncheck</strong>, and understood to contain no key value.</p>
+<p><code>在显示完这些信息后，oncheck 会接着以一种非常通用的格式准备显示分支类型条目（twig-type entries）或叶子类型条目（leaf-type entries）。在上面的幻灯片中，根据该节点的页标志（page flags），oncheck 能够感知到该节点包含分支类型条目。不过，这两个条目都不算很长或很复杂。第一个条目显然包含键值 N，后面跟着节点编号 0x2cd。请注意，oncheck 指出了 mini-slot 的存在，并理解它不包含任何键值。</code></p>
+<p><strong>The Branch Node: oncheck -pK Output</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505292211708.png" alt="image-20250529221129639"></p>
+<p><strong>Notes:</strong></p>
+<p>More output from the same <strong>oncheck -pK</strong> report is shown above. We can see from the heading information that node 0x2cd is on level 1 of the index, with no sibling to its left, and an adjacent sibling to the right with node number 0x2cc.</p>
+<p><code>上面展示的是同一份 oncheck -pK 报告的更多输出内容。从标题信息中我们可以看出，节点 0x2cd 位于索引的第 1 层，其左侧没有兄弟节点，而右侧有一个相邻的兄弟节点，节点编号为 0x2cc。</code></p>
+<p>The twig-type entries on this level of the index reference multiple nodes for each key, so we can tell our index it contains duplicates.</p>
+<p><code>在该索引层级的分支类型条目（twig-type entries）中，每个键值都对应多个节点的引用，因此我们可以判断出该索引中包含重复键值（即索引包含重复项）。</code></p>
+<p>The first entry on the node points to node 0x1da. From the information here, we can tell that node 0x1da contains one index entry, whose key value is 0, and whose last rowid is 0x498d.</p>
+<p><code>该节点上的第一个条目指向节点 0x1da。根据此处提供的信息，我们可以得知节点 0x1da 包含一个索引条目，该条目的键值为 0，且其最后一个 rowid 为 0x498d。</code></p>
+<p><strong>The Leaf Node: oncheck -pK Output</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505292216282.png" alt="image-20250529221632214"></p>
+<p><strong>Notes:</strong></p>
+<p>Yet more output from the <strong>oncheck -pK</strong> report is shown in the slide. The mid-portion of the entry has been removed from this output in order to show the last line, which does, indeed, end with 0x498d, the value promised by the branch node on the previous page.</p>
+<p><code>幻灯片中展示了 oncheck -pK 报告的更多输出内容。为了显示最后一行（该行确实以 0x498d 结尾，这一值正是上一页分支节点所承诺的值），输出内容中删除了条目的中间部分。</code></p>
+<p>Note, too, that node number 0x1d9, the adjacent sibling to the right of this node, is also referred to by the branch node shown on the previous page. Before you look, can you guess where the value 0x1d9 occurs on that branch node?</p>
+<p><code>另外还需注意，节点编号 0x1d9（即该节点右侧的相邻兄弟节点）也在上一页所显示的分支节点中被提及。在你查看之前，能否猜猜看 0x1d9 这个值在该分支节点的哪里出现呢？</code></p>
+<p><strong>Oncheck -pT</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505292222440.png" alt="image-20250529222227383"></p>
+<p><strong>Notes:</strong></p>
+<p>The second portion of the extra output generated by <strong>oncheck -pT</strong> concentrates on the indexes. Again, all numbers here are in decimal.</p>
+<p><code>oncheck -pT 命令生成的额外输出内容的第二部分主要聚焦于索引。同样，此处列出的所有数字均为十进制形式。</code></p>
+<p>The first section you see above is for the ALTER TABLE statement. While the alter is going on, a page that has been altered has a later <em>version</em> than a page Informix Dynamic Server has not altered yet.</p>
+<p><code>你上面看到的第一部分内容是关于 ALTER TABLE 语句的。在执行 ALTER 操作的过程中，已被修改的页面的“版本”（version）会比 IDS 尚未修改的页面的版本要新（即版本号更高）。</code></p>
+<p><strong>Level</strong> – Unfortunately, <strong>oncheck -pT</strong> refers to the root level of an index as level 1, instead of level 0 as it is known practically everywhere else. It is not too confusing here, but be sure to avoid thinking the same way or you will make mistakes interpreting other index-related <strong>oncheck</strong> output.</p>
+<p><code>遗憾的是，oncheck -pT 命令将索引的根层级称为第 1 层，而在其他几乎所有地方，根层级都被称为第 0 层。在这里，这种命名方式或许不会造成太大的混淆，但务必注意避免形成这样的思维定式，否则在解读其他与索引相关的 oncheck 输出时，你很可能会犯错误。</code></p>
+<p><strong>Total</strong> – The total number of nodes on this particular level.</p>
+<p><code>这一特定层级上的节点总数。</code></p>
+<p><strong>Average No. Keys</strong> – This column is a bit misleading. Even if your index contains one key value, the <em>Average Number of Keys</em> on each level depends more on the number of rows in the table than the number of keys on that level. To arrive at the number for the leaf level, for instance, <strong>oncheck</strong> divides the total number of rows in the tblspace by the total number of leaf nodes. For non-leaf levels, the total number of node references is divided by the number of nodes on the level.</p>
+<p><code>这一列的数据可能会让人产生误解。即便你的索引中只包含一个键值，但每一层上的“平均键数”（Average Number of Keys）更多地还是取决于表中记录的数量，而非该层上键的实际数量。举例来说，为了得出叶子层（leaf level）的平均 key 数，oncheck 命令会将 tblspace 中的总记录数除以叶子节点的总数。而对于非叶子层（non-leaf levels），则是将该层上的节点引用总数除以该层的节点数。</code></p>
+<p><strong>Average Free Bytes</strong> – This title is accurate. The total number of free bytes in all the nodes on an index level is divided by the number of nodes on that level.</p>
+<p><code>这个标题表述准确。它是将索引某一层级上所有节点中空闲字节（free bytes）的总数，除以该层级的节点数所得出的结果。</code></p>
  
       <!-- reward -->
       
