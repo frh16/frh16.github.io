@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+
+
+<html lang="en">
+  
+
+    <head>
+      <meta charset="utf-8" />
+        
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>IX9111 - Unit 7. Blobspaces |  blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    </head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-IX9111/7"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  IX9111 - Unit 7. Blobspaces
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/06/02/IX9111/7/" class="article-date">
+  <time datetime="2025-06-02T14:35:55.000Z" itemprop="datePublished">2025-06-02</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/IX9111/">IX9111</a>
+  </div>
+ 
+    </div>
+      
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p><strong>Blobspace Architecture</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506022236155.png" alt="image-20250602223600067"></p>
+<p><strong>Notes:</strong></p>
+<p>Every blob chunk has the same basic layout, yet it still manages to baffle the best of us because of similar terms for its relatively few elements. A blob chunk begins with a <em>blobpage map</em>, followed by a blob <em>bitmap</em>, followed by the actual <em>blobpages</em>. The blobpage map (1) tracks blobpages (3). The blob bitmap (2) tracks pages in the blobspace map (1). The blobpages store blob data.</p>
+<p><code>每个 blob chunk 都具有相同的基本布局，但由于其元素数量相对较少且术语相似，仍会让我们感到困惑。blob chunk 以 blobpage map 开头，接着是一个 BLOB bitmap，最后是实际的 blobpages。blobpage map（1）用于跟踪 blobpages（3）。blob bitmap（2）用于跟踪 blobspace map（1） 里的页 。blobpages 则用于存储 blob 数据。</code></p>
+<p>Clear as mud? It is best to divide and conquer.</p>
+<p><code>还是一头雾水吗？最好的办法就是分而治之（逐个击破、逐一理解）。</code></p>
+<p><strong>Blob chunk overhead pages</strong></p>
+<p>When a blob chunk is created, all overhead pages are allocated up front. These are regular-sized Dynamic Server pages. Only blobpages, which come after the blob chunk overhead pages, are potentially larger than the database server page size.</p>
+<p><code>在创建 blob chunk 时，会预先分配所有开销页（overhead pages）。这些开销页都是常规大小的 Dynamic Server 页。只有位于 blob chunk overhead pages 之后的 blobpages，其大小才可能超过 database server 页的大小。</code></p>
+<p><strong>The blobpage map</strong></p>
+<p>The first of the two overhead elements is the blobpage map. It is an extent of pages that tracks all blobpages in the chunk, essentially describing each one as either used or free. The number of separate pages allocated for the blobpage map depends on the number of blobpages that must be tracked, of course, and the size of each tracking page in the map, which is the server page size.</p>
+<p><code>两个 overhead elements 中的第一个是 blobpage map。它是一组连续的页面，用于跟踪 chunk 中的所有 blobpage，实质上会记录每个 blobpage 是处于“已使用”还是“空闲”状态。当然，为 blobpage map 分配的独立页面数量，取决于需要跟踪的 blobpage 数量，以及 map 中每个跟踪页面的大小（该大小即 server 页面大小）。</code></p>
+<p><strong>The blob bitmap</strong></p>
+<p>Picture a large blob chunk. It would begin with a fairly large blobpage map, consisting of possibly hundreds of pages. As the chunk began to get full, it would be a pain to search every page of the blobpage map looking for those scarce references to free blobpages. So the blobpage map itself has a bitmap describing each of its pages as either 0, which means it contains at least one reference to a free blobpage, or 1, which means it is worthless to search through, containing no reference to a free spot.</p>
+<p><code>设想一个大的 blob chunk。它会以一个相当庞大的 blobpage map 作为起始，可能由数百个页面组成。当这个 chunk 逐渐被填满时，若要搜索 blobpage map 的每一页以寻找那些稀少的指向空闲 blobpage 的引用，将会是一件非常繁琐的事情。因此，blobpage map 本身设有一个位图（bitmap），用于描述其每一页的状态：若某页标记为 0，则表示该页至少包含一个指向空闲 blobpage 的引用；若标记为 1，则意味着搜索该页毫无价值，因为它不包含任何指向空闲位置的引用。</code></p>
+<blockquote>
+<p>scarce 英[skeəs] 美[skers]<br>adj.稀少的;缺乏的;不足的;<br>adv.几乎不;刚;简直不;勉强;</p>
+</blockquote>
+<p><strong>Blobpages</strong></p>
+<p>Blobpages are what the fighting is all about. They store blobspace blob data. We will get to lower-level blobpage details in a few minutes. In the meantime, here are a few tidbits to tide you over:</p>
+<p><code>Blobpages（二进制大对象页）正是这场“存储之战”的核心所在。它们用于存储 blobspace（二进制大对象空间）中的 blob 数据（二进制大对象数据）。几分钟后，我们将深入探讨 blobpage 更底层的细节。在此期间，先分享几个小知识点，让你先睹为快：</code></p>
+<p> <strong>•</strong> Their size is configurable, but only to intervals of the system page size and only at the blobspace level. </p>
+<p><code>它们（指 blobpages）的大小是可配置的，但只能按照系统页面大小的间隔进行配置，并且这种配置只能在 blobspace（二进制大对象空间）级别进行。</code></p>
+<p> <strong>•</strong> Their size is not trivial; unlike blobs stored with the data, a blobspace blobpage can store data from only one blob.</p>
+<p><code>它们的大小并非微不足道；与和数据一起存储的二进制大对象（blobs）不同，一个二进制大对象空间（blobspace）中的 blobpage 只能存储来自一个二进制大对象（blob）的数据。</code></p>
+<p> <strong>•</strong> They are never found in the shared memory buffer pool. Blobs stored in a blobspace are read and written there directly.</p>
+<p><code>它们永远不会出现在共享内存缓冲区池（shared memory buffer pool）中。存储在二进制大对象空间（blobspace）中的二进制大对象（blobs）是直接在那里（即 blobspace 中）进行读写操作的。</code></p>
+<p><strong>A Typical Blobpage Map Page</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506032123759.png" alt="image-20250603212316620"></p>
+<p><strong>Notes:</strong></p>
+<p>Every blobpage in the chunk is represented by one 8-byte blob <em>free-map structure</em> in the blobpage map. Not surprisingly, the first blobpage is tracked by the first blob free-map structure in the first page of the blobpage map. The second structure tracks the second blobpage, and so on.</p>
+<p><code>chunk 中的每一个 blobpage，都会在 blobpage map 中由一个 8 字节的 blob free-map structure 来表示。不出所料，blobpage map 第一页中的第一个 blob free-map structure 会负责跟踪第一个 blobpage。第二个 structure 则负责跟踪第二个 blobpage，依此类推。</code></p>
+<p><strong>The blob free-map structure</strong></p>
+<p>Each blob free-map structure, which consists of two 4-byte integers, contains three pieces of information about the blobpage it represents; it is meant to convey the <em>state</em> of the blobpage.</p>
+<p><code>每个由两个 4 字节整数构成的 blob free-map structure 都包含关于其所代表的 blobpage 的三部分信息；该 structure 旨在传达该 blobpage 的状态。</code></p>
+<p><strong>Blobpage state</strong></p>
+<p>Blobspace blob data is never actually <em>modified</em>. An update of blob data involves inserting new data into a new chain of blobpages, then freeing the old blobpages. Think of blob data as having a state that toggles back and forth between used and free.</p>
+<p><code>blobspace 中的 blob 数据实际上从未被真正修改过。对 blob 数据的更新操作涉及将新数据插入到一个新的 blobpage 链中，然后释放旧的 blobpage。可以将 blob 数据的状态想象为在“已使用”和“空闲”之间来回切换。</code></p>
+<p><strong>Used bit</strong></p>
+<p>The most significant bit of the first integer in the blob free-map structure indicates whether the blobpage is used (1) or free (0). Recall that a 4-byte integer with only the most significant bit set has a hex value of 0x80000000.</p>
+<p><code>blob free-map structure 中第一个 4 字节整数的最高有效位（most significant bit）用于指示该 blobpage 是否正在被使用（值为 1）或处于空闲状态（值为 0）。回想一下，一个仅最高有效位被置为 1 的 4 字节整数，其十六进制值为 0x80000000。</code></p>
+<p><strong>Loguniq</strong></p>
+<p>Even with the sign bit unavailable, there is plenty of room in the first integer of the structure to store a logical log unique ID. This ID, stored only for blobs in databases being logged, represents the logical log that was current when the state of the blobpage last changed.</p>
+<p><code>即便符号位（sign bit）不可用，该结构中第一个整数的剩余空间也足以存储一个 logical log unique ID。这个 ID 仅针对处于被记录日志状态的数据库中的二进制大对象（blobs）进行存储，它表示在该 blobpage 状态最后一次发生变更时，当前处于活动状态的逻辑日志。</code></p>
+<blockquote>
+<p>plenty 大量 英[ˈplenti] 美[ˈplenti]</p>
+</blockquote>
+<p><strong>Why store a loguniq?</strong></p>
+<p>Blobspace blob data, because its size is practically unlimited, is never written to the logical log files. When a blobspace blob is inserted, deleted, or updated in a database created with logging, the record of the operation that is written to the current log file contains only a miniature representation of the blob data: the home row’s 56-byte descriptor. </p>
+<p><code>blobspace 中的 blob 数据大小实际上不受限制，因此这些数据从不会被写入到逻辑日志文件中。当在一个启用了日志记录功能的数据库中对 blobspace 中的 blob 进行插入、删除或更新操作时，写入到当前日志文件中的操作记录仅包含该 blob 数据的一个微型表示：即其所在行的 56 字节描述符（56-byte descriptor）。</code></p>
+<p>Meanwhile, in the blobspace, the operation has changed the state of a number of blobpages. The blob free-map structures tracking those blobpages are updated to include the current logical log unique ID. Thus, the blob data is not included in, but <em>associated with</em> the log containing its descriptor. Then, when that logical log file is backed up, the appropriate blobpages tag along. (They are actually written to tape before the log is.) The mechanism that determines which blobpages are appropriate for a particular logical log hinges on the <strong>loguniq</strong> values stored in the blob free-map structures.</p>
+<p><code>与此同时，在 blobspace 中，这些操作已改变了多个 blobpage 的状态。跟踪这些 blobpage 的 blob free-map structures 会被更新，以包含当前的 logical log unique ID。因此，虽然 blob 数据本身并未被包含在日志文件中，但它却与包含其描述符（descriptor）的日志文件相关联。随后，当该逻辑日志文件被备份时，相应的 blobpage 也会随之一起备份（实际上，它们会在日志文件之前被写入到磁带中）。确定哪些 blobpage 适用于特定逻辑日志的机制，依赖于存储在 blob free-map structures 中的 loguniq（逻辑日志唯一标识符）值。</code></p>
+<p><strong>Partition number</strong></p>
+<p>This is the partition number of the tblspace that contains the blob data. The purpose of storing this information is to speed the freeing of blobpages when a tblspace is dropped.</p>
+<p><code>这是包含 blob 数据的 tblspace 的 partition number。存储此信息的目的是在表空间被删除时，能够加速释放（freeing）相关的 blobpage。</code></p>
+<p><strong>Blobpage Addressing</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506032147823.png" alt="image-20250603214703763"></p>
+<p><strong>Notes:</strong></p>
+<p>A blobpage is referred to mainly by its <em>blobpage address</em>, which is close to, but never quite the same as its physical address. For instance, imagine an Informix Dynamic Server system’s third chunk is a blob chunk beginning with five overhead pages. The first blobpage in the chunk has a physical address of 0x00300005 and a blobpage address of 0x00300000. Assume the size of a blobpage in this chunk is 6 x BUFFSIZE. The second blobpage in the chunk has a physical address of 0x0030000b, and a blobpage address of 0x00300001.</p>
+<p><code>一个 blobpage 主要通过其 blobpage address 来引用，该地址与它的物理地址相近，但并不完全相同。例如，假设一个 IDS 系统的第3个 chunk 是一个 blob chunk，该 chunk 以五个 overhead pages 开头。该 chunk 中的第一个 blobpage 的物理地址是 0x00300005，而其 blobpage address 是 0x00300000。假设该数据块中一个 blobpage 的大小为 6 倍的 BUFFSIZE（缓冲区大小）。那么，该数据块中的第二个 blobpage 的物理地址是 0x0030000b，而其 blobpage address 是 0x00300001。</code></p>
+<p>Like a physical address, a blobpage address is a 4-byte code. The most significant one and a half bytes (3 nibbles) contain the chunk number, and the low order two and a half bytes (5 nibbles) contain the blobpage number.</p>
+<p><code>与物理地址类似，一个 blobpage 地址是一个 4 字节（32 位）的编码。其中，最高有效的 1.5 字节（即 3 个半字节，nibble，每个 nibble 为 4 位）包含 chunk 的编号，而最低有效的 2.5 字节（即 5 个半字节）则包含 blobpage 的编号。</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506032153800.png" alt="image-20250603215341754"></p>
+<p><strong>Viewing a Blobpage</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506042159319.png" alt="image-20250604215910188"></p>
+<p><strong>Notes:</strong></p>
+<p>Unfortunately there is no supported method by which you can display an entire blobspace blobpage, as we have been displaying all other types of pages. The output from <strong>oncheck</strong> <strong>-pP</strong> is more confusing than helpful; it prints only header information, most of which is inaccurate because the header structure on a blobpage is not the one expected by <strong>oncheck -pP</strong>. The only <strong>oncheck</strong> command that displays any blobpage information of value is <strong>oncheck -pD</strong>.</p>
+<p><code>遗憾的是，目前并没有受支持的方法能像展示其他所有类型的页面那样，完整显示一个 blobspace 中的 blobpage。oncheck -pP 命令的输出结果不仅没有起到多大帮助，反而令人困惑；它仅打印页头信息，而且其中大部分信息都不准确，这是因为 blobpage 的页头结构并非 oncheck -pP 命令所预期的结构。在所有 oncheck 命令中，唯一能显示有价值 blobpage 信息的命令是 oncheck -pD。</code></p>
+<p>Run <strong>oncheck -pD</strong> on your <strong>stores_demo:bsblob</strong> tblspace and pipe the output to <strong>tail -16</strong>. These last 16 lines should be the information for the last home row in your table. Below the hex dump of the blob descriptor, your output should resemble the slide above.</p>
+<p><code>对你的 stores_demo:bsblob tblspace 运行 oncheck -pD 命令，并将输出结果通过管道传输给 tail -16。最后这 16 行应该是你表中 home row 的信息。在 blob 描述符的十六进制转储（hex dump）下方，你的输出结果应该与上面的幻灯片内容相似。</code></p>
+<p><strong>TBLOB</strong></p>
+<p>TBLOB stands for the blob descriptor structure. Here are some useful fields in the TBLOB section.</p>
+<p><code>TBLOB 代表的是 blob 描述符结构。以下是 TBLOB 部分中一些有用的字段。</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506042206692.png" alt="image-20250604220608650"></p>
+<p><strong>BLOBPAGE</strong></p>
+<p>These fields can be found in the BLOBPAGE section.</p>
+<p><code>这些字段可以在 BLOBPAGE 部分中找到。</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506042209829.png" alt="image-20250604220908771"></p>
+<p><strong>Blobspace Behavior: Logging and Backup</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506042210740.png" alt="image-20250604221040674"></p>
+<p><strong>Notes:</strong></p>
+<p>Blobspace blob data is never written to the logical log files. Instead, Informix Dynamic Server writes minimal reference information about the blobspace blob to the logical log files: the blob descriptor structure from the home row, and any associated blob free-map structures from the blobspace. However, blob data does manage to sneak its way onto the appropriate logical log tape while nobody is watching.</p>
+<p><code>Blobspace 中的 blob 数据从来不会被写入逻辑日志文件。相反，IDS 仅将关于 blobspace 中 blob 的最少引用信息写入逻辑日志文件：这些信息包括 home row 中的 blob descriptor structure，以及 blobspace 中与之相关的任何 blob free-map structures。然而，在无人察觉的情况下，blob 数据还是会设法“潜入”到相应的逻辑日志磁带上。</code></p>
+<blockquote>
+<p>sneak 英[sniːk] 美[sniːk]<br>v.溜;偷走(不重要的或小的东西);偷拿;偷偷地走;偷带;（儿童向成人）打小报告，告状;偷偷地做;<br>n.打小报告的人，告状者(尤指儿童);<br>adj.突然的;出其不意的;</p>
+</blockquote>
+<p>You might assume that at log backup time, <strong>ontape</strong> determines which blobpages belong with a particular logical log by scanning the log records for descriptor structures, tracking down their blobpages and whisking them off to the tape. But there is a much faster way to do this. </p>
+<p><code>你可能会认为，在进行日志备份时，ontape 工具会通过扫描日志记录中的 descriptor structures，来确定哪些 blobpage 属于某个特定的逻辑日志，然后追踪这些 blobpage 并将它们快速传输到磁带上。但实际上，有一种更快的方法可以实现这一目的。</code></p>
+<p>Before backing up each log, <strong>ontape</strong> searches the blobpage map for any blobpages, whether used or free, whose <strong>loguniq</strong> (logical log unique ID) matches the log waiting to go to tape. Any blobpages that fit the criteria are sent first, followed by the logical log that presumably contains all the associated blob descriptor structures.</p>
+<p><code>在备份每个日志之前，ontape 工具会在 blobpage map 中搜索任何其 loguniq（逻辑日志唯一标识符）与等待写入磁带的日志相匹配的 blobpage，无论这些 blobpage 是已使用状态还是空闲状态。任何符合条件的 blobpage 都会被优先发送，随后才会发送可能包含所有相关 blob descriptor structures 的逻辑日志。</code></p>
+<p>This should explain why blobpages that are freed during a delete operation cannot be reused until the current logical log is backed up to tape.</p>
+<p><code>这应该能解释为什么在执行删除操作后被释放的 blobpages，在当前逻辑日志备份到磁带之前无法被重新使用。</code></p>
+<p>This should also explain why you must switch to the next logical log before writing blob data to a brand new blobspace. Can you make the connection?</p>
+<p><code>这也应该能解释为什么在向一个全新的 blobspace 写入 blob 数据之前，必须切换到下一个逻辑日志。你能理清其中的关联吗？</code></p>
+<p>When you create a blobspace, a record of the event is written to the current logical log. </p>
+<p><code>当你创建一个 blobspace 时，该事件的一个记录会被写入当前的逻辑日志。</code></p>
+<p>Now imagine a scenario in which you are allowed to immediately write blob data to the new blobspace.</p>
+<p><code>现在设想这样一个场景：你被允许立即向这个全新的 blobspace 写入 blob 数据。</code></p>
+<p>When that logical log is backed up, a number of blobpages are written to the tape ahead of the log.</p>
+<p><code>当那个逻辑日志被备份时，会有多个 blobpage 在日志之前被写入磁带。</code></p>
+<p>If that logical log is applied after the restore of an archive, the blobpages appear on the tape long before the blobspace creation record is applied. As the archive API reads blobpages, it expects to put them somewhere. The current design guarantees that there is always a blobspace in which to put them.</p>
+<p><code>如果在恢复一个归档文件之后应用该逻辑日志，那么在 blobspace 创建记录被应用之前很久，blobpage 就已经出现在磁带上了。由于归档文件接口在读取 blobpage 时，期望能将它们放置到某个位置，而当前的设计确保了总有一个 blobspace 可以用来放置这些 blobpage。</code></p>
+<p>大概这个意思，按之前说的，备份每个逻辑日志之前，先备 blobpage，所以，即使在这同一逻辑日志里，刚刚新建的 blobspace 这个操作，要在备份 blobspace 之后才备份，所以恢复时，先恢复 blobpage，但此时 blobspace 创建的这个操作还没重做呢。这解释了上边第二个问题。</p>
+<p>至于第一个问题 ：“执行删除操作后被释放的 blobpages，在当前逻辑日志备份到磁带之前无法被重新使用”  ，不理解，如果全删了，一直不备份，岂不是所有 blobpage 都用不了了</p>
+<p><strong>Advantages of Partition Storage</strong></p>
+<p><code>分区存储的优点</code></p>
+<p> Small blobs are usually best stored in the tblspace:</p>
+<p><code>小的 blob 通常最好存储在 tblspace 中：</code></p>
+<p>– PNBLOB pages take advantage of the data cache, traveling through the buffer pool like any other dbspace page.</p>
+<p><code>PNBLOB 页会利用数据缓存，像其他任何 dbspace page 一样在缓冲池中传递。</code></p>
+<p>– PNBLOB pages can store more than one blob piece.</p>
+<p><code>PNBLOB 页可以存储多个 blob 片段。</code></p>
+<p> PNBLOB pages are physically logged, so there are no special archiving issues</p>
+<p><code>PNBLOB 页会进行物理日志记录，因此不存在特殊的归档问题</code></p>
+<p> PNBLOB pages are truly updated. It is not necessary to have double the space available for a blob that is being modified</p>
+<p><code>PNBLOB 页确实会被真正更新。对于正在修改的 blob，无需预留双倍的空间。</code></p>
+<p>突然蹦出来个 PNBLOB 莫名其妙，看不懂</p>
+<p><strong>Notes:</strong></p>
+<p>Some of the advantages of storing blobs in a tblspace as opposed to a blobspace are listed above.</p>
+<p><code>上述内容列出了将 blobs 存储在 tblspace 而非 blobspace 中的一些优势。</code></p>
+<p><strong>Advantages of Blobspace Storage</strong></p>
+<p>Large blobs are usually best stored in a blobspace when:</p>
+<p><code>以下情况通常最好将 blobs 存储在 blobspace 中：</code></p>
+<p>– The unit of storage is configurable, at the blobspace level, in multiples of the server page size. A properly configured blob page size could mean more efficient I&#x2F;O and far fewer locks per blob operation.</p>
+<p><code>存储单元在 blobspace 级别是可配置的，其大小以 server page size 的整数倍为单位。适当配置 blob page size 可能意味着更高效的输入/输出（I/O）操作，以及每个 blob 操作所需的锁数量大幅减少。</code></p>
+<p>– Blobspace blob data is written directly to disk, which can be more efficient for large blobs.</p>
+<p><code>blobspace 中的 blob 数据会直接写入磁盘，这对于大型二进制大对象而言可能更为高效。</code></p>
+<p>– Only blob free-map pages and blob descriptors are logged, so logs do not fill up as quickly as they might with PNBLOBs.</p>
+<p><code>只有 blob 的 free-map pages 和 blob descriptors 会被记录到日志中，因此与使用 PNBLOBs 的情况相比，日志不会那么快被填满。</code></p>
+<p>– The same goes for physical logging. PNBLOBs can cause so much physical logging that checkpoints are triggered prematurely.</p>
+<p><code>物理日志记录的情况也是如此。PNBLOBs 可能会导致大量的物理日志记录，从而过早触发检查点（checkpoints）。</code></p>
+<p><strong>Notes:</strong></p>
+<p>A good rule for deciding whether a blob should be stored in a blobspace or in with the tblspace is this: if the average blob size for a table is greater than two pages, store it in a blobspace. If the average blob size is less than one-half of a page, store it in the tblspace. Blobs that are generally in between these sizes, or blobs that are highly variable in size pose a more difficult decision and might require benchmark tests to determine the more efficient storage method.</p>
+<p><code>以下是一个用于决定 blob 应存储在 blobspace 还是 tblspace 中的良好准则：如果表中 blob 的平均大小超过两页，则将其存储在 blobspace 中；如果平均大小小于半页，则将其存储在 tblspace 中。对于大小通常介于这两者之间的二进制 blob，或者大小高度可变的二进制大对象，做出决定则更为困难，可能需要进行基准测试以确定更高效的存储方法。</code></p>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://frh16.github.io/2025/06/02/IX9111/7/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2025/06/01/IX9111/6/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">IX9111 - Unit 6. Fragmented Tables and Indexes</div>
+      </a>
+    
+  </nav>
+
+  
+   
+    
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2023-2025
+        <i class="ri-heart-fill heart_icon"></i> fengrh
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    
+
+  </div>
+</body>
+
+</html>
