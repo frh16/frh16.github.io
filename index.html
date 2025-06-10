@@ -67,6 +67,212 @@
     
     
     <article
+  id="post-IX9111/8"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h2 itemprop="name">
+  <a class="article-title" href="/2025/06/07/IX9111/8/"
+    >IX9111 - Unit 8. Sbspaces</a> 
+</h2>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/06/07/IX9111/8/" class="article-date">
+  <time datetime="2025-06-07T12:50:00.000Z" itemprop="datePublished">2025-06-07</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/IX9111/">IX9111</a>
+  </div>
+ 
+    </div>
+      
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p><strong>Unit 8. Sbspaces</strong></p>
+<p><strong>Sbspace Chunk Layout</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506072051497.png" alt="image-20250607205138379"></p>
+<p><strong>Notes:</strong></p>
+<p>A <em>smart blobspace</em>, or <em>sbspace</em>, is a logical collection of chunks that is used to store <em>smart</em> <em>large objects</em> (also called <em>smart LOs</em> or <em>smart blobs</em>).</p>
+<p><code>智能大对象空间（smart blobspace，简称 sbspace）是一个由多个 chunk 构成的逻辑集合，用于存储智能大对象。</code></p>
+<p>When an sbspace is initially created, it assigns space for header data, <em>metadata</em>, and user data. The first chunk of an sbspace always contains a 53-page header, also known as the sbspace reserved pages. Subsequent chunks require only 3 reserved pages.</p>
+<p><code>在最初创建 sbspace 时，它会为 header data、metadata 以及 user data 分配空间。sbspace 的第一个 chunk 始终包含一个由 53 页组成的 header，也称为sbspace 的保留页。而后续的 chunk 则仅需 3 页保留页。</code></p>
+<p>There is always a metadata area stored within the first chunk of an sbspace. The default location is near the middle of the chunk to optimize access time. The location and size can be determined during the creation of the sbspace. A metadata area can contain information for one or more chunks within the sbspace. Once it is allocated, the metadata area cannot be changed in size or location.</p>
+<p><code>sbspace 的第一个 chunk 中，始终会存储一个 metadata 区域。默认情况下，该 metadata 区域位于 chunk 接近中间的位置，以优化访问时间。其具体位置和大小可在创建 sbspace 时确定。一个 metadata 区域可以包含 sbspace 内一个或多个 chunk 的相关信息。一旦 metadata 区域被分配，其大小和位置便无法再更改。</code></p>
+<p>Any space remaining after the header pages and the metadata are allocated is used for storing user data, that is, the smart large objects.</p>
+<p><code>在分配完 header pages 和 metadata 之后所剩余的空间，均用于存储 user data，即智能大对象（smart large objects）。</code></p>
+<p><strong>Sbspace Reserved Pages</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506072101662.png" alt="image-20250607210141608"></p>
+<p><strong>Notes:</strong></p>
+<p>The first few pages of an sbspace are laid out much like other spaces in the server. There are 3 header pages at the beginning of every chunk in an sbspace. These include two unused reserved pages and one chunk free-list page. This page doesn’t track all pages used in the chunk. It only tracks the pages in the chunk that are not allocated for metadata or preassigned user data. This is the first of two levels of free-space tracking. The second level is within the metadata itself where smart LO subsystem tracking is handled.</p>
+<p><code>sbspace 的前几页布局与 server 中的其他空间颇为相似。在 sbspace 的每个 chunk 开头，都设有3个 header pages。这其中包括两个 unused reserved pages 和一个 chunk free-list page。需要注意的是，这个 chunk free-list page 并不追踪 chunk 中使用的所有页面，它仅追踪那些未被分配给 metadata 或预先分配的 user data 的页面。这是空闲空间追踪的第一级机制。而第二级追踪机制则位于 metadata 内部，由智能大对象（smart LO）子系统负责处理。</code></p>
+<p>A tblspace tblspace is found only in the first chunk of each sbspace. It is used to track information about tables within the metadata area. Information about archives taken for this sbspace are also stored here.</p>
+<p><code>在每个 sbspace 的第一个 chunk 中，会存在一个 tblspace tblspace。该结构用于在 metadata 区域内追踪与 tables 相关的信息。此外，针对该 sbspace 所进行的归档（archives）信息也会被存储在此处。</code></p>
+<p><strong>Types of Sbspace Pages</strong></p>
+<p> Standard pages</p>
+<p> Metadata partitions</p>
+<p> Smart LO pages</p>
+<p> Smart LO data stored in rows</p>
+<p><strong>Notes:</strong></p>
+<p>There are four different types of pages used to store and manage large objects in an sbspace. These are discussed in the following pages.</p>
+<p><code>sbspace 中，用于存储和管理 large objects 的页面共有四种不同类型。以下页面将对这些类型进行讨论。</code></p>
+<p><strong>Standard Pages</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506072118900.png" alt="image-20250607211850828"></p>
+<p><strong>Notes:</strong></p>
+<p>The pages in an sbspace that are considered <em>standard</em> are those that look like and are handled similarly to the pages in a dbspace. These pages contain page headers, timestamps, and slot tables. There are data pages, partition pages, and index pages found in various sbspace structures.</p>
+<p><code>sbspace 中，被视为标准页面的，是那些在外观和处理方式上与数据库空间（dbspace）中的页面相似的页面。这些标准页面包含页头（page headers）、时间戳（timestamps）以及 slot tables。在 sbspace 的各种结构中，可以找到数据页（data pages）、分区页（partition pages）以及索引页（index pages）。</code></p>
+<p><strong>Metadata Area</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506072123110.png" alt="image-20250607212332036"></p>
+<p><strong>Notes:</strong></p>
+<p>The <em>metadata area</em> is preallocated at the time the sbspace is created. It cannot be enlarged by allocating more unused user-data space; another chunk with a new metadata area must be allocated. The metadata for the sbspace contains tables for handling four types of information. These tables are stored in the sbspace as regular tblspaces (partitions).</p>
+<p><code>元数据区域（metadata area）在创建 sbspace 时即被预先分配。它无法通过分配更多未使用的用户数据空间来扩大；若需扩展，必须分配一个包含新 metadata area 的新 chunk。sbspace 的 metadata 包含用于处理四种类型信息的表。这些表以常规 tblspaces (partitions) 的形式存储在 sbspace 中。</code></p>
+<p><strong>•</strong> Sbspace description partition (<strong>sbspace_desc</strong>) – This partition contains a single structure that describes the smart blobspace. It includes special attributes for the sbspace (the <strong>onspaces -Df</strong> attributes used when the sbspace was created), the location of the chunk adjunct partition, and sbspace flags. This partition uses only one page and is stored in the first chunk of the sbspace.</p>
+<p><code>此分区包含一个单一结构，用于描述 smart blobspace。它包 space 的特殊属性（即创建智能块空间时使用的 onspaces -Df 属性）、数据块附属分区（chunk adjunct partition）的位置，以及 sbspace 的标志位（flags）。该 partition 仅占用一页，并存储在 sbspace 的第一个 chunk 中。</code></p>
+<p> <strong>•</strong> Chunk adjunct partition (<strong>chunk_adjunc</strong>) – This partition stores information about each chunk in the sbspace. It includes the location and size of the user-data metadata areas, and the location of the LO header partition for the chunk. The chunk adjunct partition contains one row for each chunk and is stored in the first chunk of the sbspace.</p>
+<p><code>该 partition 用于存储 sbspace 中每个 chunk 的相关信息。这些信息包括 user-data metadata areas 的位置和大小，以及每个 chunk 中 LO header partition 的位置。chunk adjunct partition 为每个 chunk 包含一行记录，并且该分区存储在 sbspace 的第一个 chunk 中。</code></p>
+<p> <strong>•</strong> LO header partition (<strong>LO_hdr_partn</strong>) – For each smart LO in the chunk, this table describes the time and date the LO was created, the size of the LO, and other attributes. It also includes an extent list that is allocated to the smart LO. There is one LO header partition allocated for each chunk in the sbspace.</p>
+<p><code>对于 sbspace 中的每个智能大对象（smart LO），此表均会描述该大对象的创建时间和日期、大小以及其他属性。此外，它还包含一个分配给该智能大对象的 extent list。在 sbspace 的每个 chunk 中，都会分配一个这样的 LO header partition。</code></p>
+<p><strong>•</strong> UD free-list partition (<strong>LO_ud_free</strong>) – This partition tracks free extents in the user-data areas of a chunk; it is very similar to the chunk free list. There is one UD free-list partition for each chunk in the sbspace.</p>
+<p><code>该 partition 负责追踪 chunk 的 user-data areas 中的 free extents；其功能与 chunk free list 非常相似。在 sbspace 的每个 chunk 中，都会分配一个这样的 UD free-list partition。</code></p>
+<p>Use the <strong>oncheck -cS</strong> command to display the partition numbers and space usage for these partitions.</p>
+<p><code>使用 oncheck -cS 命令可以显示这些 partition 的 partition numbers 以及空间使用情况（space usage）。</code></p>
+<p><strong>Smart LO Pages</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506072204946.png" alt="image-20250607220400881"></p>
+<p><strong>Notes:</strong></p>
+<p>Smart LO pages have the same format as a dbspace data page that contains rows of data. It has a twenty-four-byte header and a four-byte timestamp trailer. The page size is specified when the sbspace is created. A smart LO can span multiple pages within the sbspace. The LO is simply stored in pieces that fit on a page. The pages are read and written by the smart LO subsystem via the dynamic buffer manager. I&#x2F;O for the metadata subsystem, on the other hand, is handled by the regular RSAM I&#x2F;O subsystem.</p>
+<p><code>智能大对象（smart LO）页面的格式与包含数据行的 dbspace 数据页面相同。它具有一个 24 字节的页头（header）和一个 4 字节的时间戳尾记（timestamp trailer）。页面大小在创建 sbspace 时指定。一个智能大对象可以跨越 sbspace 内的多个页面。该大对象只是被拆分成适合存储在单个页面上的片段进行存储。智能大对象子系统通过动态缓冲区管理器（dynamic buffer manager）来读写这些页面。另一方面，metadata 子系统的输入/输出（I/O）操作则由常规的 RSAM 输入/输出子系统来处理。</code></p>
+<p><strong>Large Object Data Stored on Data Pages</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506072207241.png" alt="image-20250607220742169"></p>
+<p><strong>Notes:</strong></p>
+<p>Both simple LOs (data of type BYTE or TEXT) and smart LOs (types BLOB and CLOB) contain information in the data row to locate the large object data. For simple large objects, there is a 56-byte descriptor that is stored in the data row. Smart large objects have a 72-byte descriptor structure. Depending on byte-alignment requirements, the descriptor could be preceded with up to 4 bytes of padding.</p>
+<p><code>无论是简单大对象（数据类型为 BYTE 或 TEXT）还是智能大对象（数据类型为 BLOB 和 CLOB），其数据行中均包含用于定位大对象数据的信息。对于简单大对象，数据行中存储有一个 56 字节的描述符（descriptor）。而智能大对象则具有一个 72 字节的描述符结构。根据字节对齐（byte-alignment）的要求，描述符前面可能会添加最多 4 字节的填充（padding）。</code></p>
+<p>The LO descriptor contains a 12-byte structure called the <em>smart LO handle</em>. This handle consists of three integer values: an sbspace number, a chunk number, and a sequence number. These values indicate the location (sbspace and chunk) of the LO header partition that describes the smart LO, and the <em>logical sequence number</em>, which is assigned based on the logical position within the partition.</p>
+<p><code>大对象（LO）描述符中包含一个 12 字节的结构，称为智能大对象句柄（smart LO handle）。该句柄由三个整数值组成：一个 sbspace number、chunk number 以及一个序列号（sequence number）。这些值用于指示描述该智能大对象的 LO header partition 的位置（sbspace and chunk），以及逻辑序列号（logical sequence number），该序列号是根据该智能大对象在分区内的逻辑位置分配的。</code></p>
+<p><strong>Locating a Smart Large Object</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506092035208.png" alt="image-20250609203539067"></p>
+<p><strong>Notes:</strong></p>
+<p>The figure above shows how the smart LO handle is used to locate and retrieve a smart large object from a table.</p>
+<p><code>上图展示了智能大对象句柄如何用于从表上定位并取回智能大对象。</code></p>
+<ol>
+<li><p>When a row containing a smart LO is requested, the database server reads the page containing the row into shared memory. </p>
+<p><code>当请求包含智能大对象的某一行数据时，server 会将包含该行数据的页面读入共享内存。</code></p>
+</li>
+<li><p>The server locates the smart LO descriptor and extracts the LO handle. The handle is used to look up the entry for the smart large object in the LO header partition. </p>
+<p><code>server 定位智能大对象描述符，并提取出大对象句柄。该句柄用于在 LO header partition 中查找智能大型对象的条目。</code></p>
+</li>
+<li><p>This partition contains the location of each extent of the large object. With this information, the smart LO can be retrieved from the sbspace.</p>
+<p><code>该 partition 包含大对象的每个 extent 的位置信息。借助这些信息，即可从 sbspace 中检索出智能大对象。</code></p>
+</li>
+</ol>
+<p><strong>Inserting a Smart Large Object</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506092043588.png" alt="image-20250609204313509"></p>
+<p><strong>Notes:</strong></p>
+<p>When a request is received to insert a new row into a table that contains a smart LO, an insert is required in both a page in the tblspace as well as an insert to the sbspace. The figure above shows how smart LOs are inserted.</p>
+<p><code>当收到向包含智能大对象的表中插入新行的请求时，不仅需要在 tblspace中的一个页面进行插入操作，还需要在 sbspace 中进行插入操作。上图展示了智能大对象是如何被插入的。</code></p>
+<ol>
+<li><p>When the INSERT request is received, a data page with available space is read into shared memory and a slot is allocated for the new row. </p>
+<p><code>当接收到 INSERT 请求时，会将一个有可用空间的数据页读入共享内存，并为新行分配一个 slot。</code></p>
+</li>
+<li><p>To insert the smart LO into the sbspace, the database server examines the UD free-list partition to locate available space for the large object. </p>
+<p><code>为了将智能大对象插入到 sbspace 中，server 会检查 UD free-list partition，以定位该大对象可用的空间。</code></p>
+</li>
+<li><p>If a single free extent cannot be found that is large enough for the object, then multiple extents are allocated. The smart LO is inserted into the free extents, and the free-extent information is updated in the UD free-list partition. </p>
+<p><code>如果找不到一个足够大的单个空闲 extent 来容纳该对象，那么就会分配多个 extent。智能大对象会被插入到这些空闲 extent 中，并且 UD free-list partition 中的 free-extent 信息也会随之更新。</code></p>
+</li>
+<li><p>Extent information for the new LO are added to a new row in the LO header partition.</p>
+<p><code>该新大对象的 extent 信息会被添加到 LO header partition 中的一个新行中。</code></p>
+</li>
+<li><p>Finally, the smart LO descriptor on the data page is updated with information about the smart LO, including the smart LO handle.</p>
+<p><code>最后，数据页上的 smart LO descriptor 会被更新，添加关于该智能大对象的信息，包括智能大对象句柄。</code></p>
+</li>
+</ol>
+<p><strong>Sbspace Example</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506102052633.png" alt="image-20250610205239507"></p>
+<p><strong>Notes:</strong></p>
+<p>Above is a sample of output from an <strong>onstat -d</strong> command. An <strong>oncheck -pe</strong> report for the sbspace in this system is shown on the following page. The information for the user data free list was obtained right after the sbspace was created and appears as FREE USER DATA in an <strong>oncheck -pe</strong> report. </p>
+<p><code>以上是 onstat -d 命令输出的一个示例。该系统 sbspace 的 oncheck -pe 报告内容展示在下一页。user data free list 的相关信息是在创建该 sbspace 后立即获取的，并以 oncheck -pe 报告中的“FREE USER DATA”形式呈现。</code></p>
+<p>The database server reserves 40 percent of the user-data area as a RESERVED USER DATA area. This space can be used for either the metadata or user data. Space in the metadata area gets used up as smart large objects are added to that sbspace. When the database server runs out of metadata or user-data space, it moves a block of the reserved space to the corresponding area.</p>
+<p><code>server 会将用户数据区的 40% 预留为“RESERVED USER DATA”区域。该空间既可用于 metadata，也可用于 user data。随着向该 sbspace 添加智能大对象（smart large objects），metadata 区的空间会逐渐被占用。当 server 的 metadata 区或 user data 区空间耗尽时，它会将预留空间中的一块区域移动到相应的区域（元metadata 区或 user data 区）以供使用。</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506102101138.png" alt="image-20250610210106034"></p>
+<p>The three values in brackets after each LO listing together represent the smart LO handle, which is used to uniquely identify every large object on the database server. In the example above, you can see smart LOs that have a <em>physical</em> order that is different from their <em>logical</em>order. The database server tries to balance the load of the sbspace by inserting into both user-data areas on a chunk.</p>
+<p><code>每个大对象条目后方括号内的三个值共同构成了智能大对象句柄，该句柄用于在 server 上唯一标识每一个大对象。在上述示例中，你可以看到智能大对象的物理顺序与其逻辑顺序并不相同。server 会尝试通过在 chunk 的两个 user-data 区中插入数据来平衡 sbspace 的负载。</code></p>
+<p><strong>Monitoring Sbspaces: oncheck</strong></p>
+<p>Use oncheck to view:</p>
+<p>– Metadata information</p>
+<p>– Pages on disk</p>
+<p>– General chunk layout</p>
+<p><strong>Notes:</strong></p>
+<p>The <strong>oncheck</strong> utility provides options to generate reports on sbspaces and elements within sbspaces.</p>
+<p><code>oncheck utility 提供了生成有关 sbspace 以及 sbspace 内元素的报告的选项。</code></p>
+<table>
+<thead>
+<tr>
+<th><strong>-cs sbspace</strong></th>
+<th align="left">Checks metadata information</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>-cS sbspace</strong></td>
+<td align="left">Checks metadata and extent information</td>
+</tr>
+<tr>
+<td><strong>-ps&#x2F;-pS sbspace</strong></td>
+<td align="left">Prints metadata information</td>
+</tr>
+<tr>
+<td><strong>-pp partnum logical_offset</strong></td>
+<td align="left">View a page on disk</td>
+</tr>
+<tr>
+<td><strong>-pP chunk page_offset</strong></td>
+<td align="left">View a page on disk</td>
+</tr>
+<tr>
+<td><strong>-pd&#x2F;-pD partnum</strong></td>
+<td align="left">View contents of metadata tables. The partnum for the LO partition header is needed and can be obtained from -cs options. For example: oncheck -pD 0x200004</td>
+</tr>
+<tr>
+<td><strong>-ce&#x2F;-pe sbspace</strong></td>
+<td align="left">General chunk layout</td>
+</tr>
+</tbody></table>
+<p>The <strong>oncheck -pS</strong> command is used to display tblspace information for metadata tables (like <strong>oncheck -pt</strong>) and displays additional information about smart LO extents. Here is an example:</p>
+<p><code>oncheck -pS 命令用于显示 metadata tables 的 tblspace 信息（类似于 oncheck -pt 命令），同时还会显示有关智能大对象 extent 的额外信息。以下是一个示例：</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506102128798.png" alt="image-20250610212815669"></p>
+<p><strong>oncheck –g smb</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506102129908.png" alt="image-20250610212957842"></p>
+<p><strong>Notes:</strong></p>
+<p>The <strong>onstat -g smb</strong> command can be used with any of the above options to obtain statistical information about sbspaces. The <strong>e</strong> and <strong>lod</strong> options provide a list of the entries in the LO header table. These represent the smart LOs that have been stored in sbspaces. An example is shown on the next page.</p>
+<p><code>onstat -g smb 命令可与上述任意选项配合使用，以获取有关 sbspace 的统计信息。其中，e 和 lod 选项会提供 LO header table 中的条目列表。这些条目代表存储在 sbspace 中的智能大对象。示例将在下一页展示。</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506102131931.png" alt="image-20250610213146849"></p>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <footer class="article-footer">
+       
+    </footer>
+  </div>
+
+   
+    
+</article>
+
+    
+    <article
   id="post-IX9111/7"
   class="article article-type-post"
   itemscope
@@ -2749,69 +2955,6 @@ Extents
 <p>就是脏数据的比例超过一个配置的最大脏数据百分比，触发 LRU 写，落盘</p>
 <p>（从 LRU 也能猜出一二，这是一种缓存淘汰算法）</p>
 <p>书 203 页，有个快速恢复的示例</p>
- 
-      <!-- reward -->
-      
-    </div>
-    
-
-    <!-- copyright -->
-    
-    <footer class="article-footer">
-       
-    </footer>
-  </div>
-
-   
-    
-</article>
-
-    
-    <article
-  id="post-jmeter/PreparedStatement"
-  class="article article-type-post"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
-    
-    <header class="article-header">
-       
-<h2 itemprop="name">
-  <a class="article-title" href="/2023/09/03/jmeter/PreparedStatement/"
-    >PreparedStatement</a> 
-</h2>
- 
-
-      
-    </header>
-     
-    <div class="article-meta">
-      <a href="/2023/09/03/jmeter/PreparedStatement/" class="article-date">
-  <time datetime="2023-09-03T06:49:01.000Z" itemprop="datePublished">2023-09-03</time>
-</a> 
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/jmeter/">jmeter</a>
-  </div>
- 
-    </div>
-      
-    <div class="article-entry" itemprop="articleBody">
-       
-  <p>JDBC Request</p>
-<p>有 2 个 PreparedStatement 相关的选项</p>
-<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202309031350398.png" alt="image-20230903135037315"></p>
-<p>单纯选择 Prepared Statement（没开启 Pool Prepared Statements）</p>
-<p>如果使用参数化的方式执行 select * from t1 where id&#x3D;? 性能比 Statement 低（2% 左右，粗略测试），Statement 执行的是 select * from t1 where id&#x3D;1（2% 的原因看内部文档）</p>
-<p>如果使用非参数化方式，都执行 select * from t1 where id&#x3D;1，性能没差别</p>
-<p>总之，完全体现不出来 Prepared Statement 一次预编译，多次执行的优势</p>
-<p>因为，每次请求都会重新创建 PreparedStatement 对象预编译，请求结束后 close()</p>
-<p>AbstractJDBCTestElement.java</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">&#125; <span class="keyword">else</span> <span class="keyword">if</span> (PREPARED_SELECT.equals(currentQueryType)) &#123;</span><br><span class="line">    <span class="keyword">try</span> (<span class="type">PreparedStatement</span> <span class="variable">pstmt</span> <span class="operator">=</span> getPreparedStatement(conn)) &#123;</span><br><span class="line">        setArguments(pstmt);</span><br><span class="line">        <span class="type">ResultSet</span> <span class="variable">rs</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            rs = pstmt.executeQuery();</span><br><span class="line">            sample.latencyEnd();</span><br><span class="line">            <span class="keyword">return</span> getStringFromResultSet(rs).getBytes(ENCODING);</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            close(rs);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125; <span class="keyword">else</span> <span class="keyword">if</span> (PREPARED_UPDATE.equals(currentQueryType)) &#123;</span><br><span class="line">    <span class="keyword">try</span> (<span class="type">PreparedStatement</span> <span class="variable">pstmt</span> <span class="operator">=</span> getPreparedStatement(conn)) &#123;</span><br><span class="line">        setArguments(pstmt);</span><br><span class="line">        pstmt.executeUpdate();</span><br><span class="line">        sample.latencyEnd();</span><br><span class="line">        <span class="type">String</span> <span class="variable">sb</span> <span class="operator">=</span> resultSetsToString(pstmt,<span class="literal">false</span>,<span class="literal">null</span>);</span><br><span class="line">        <span class="keyword">return</span> sb.getBytes(ENCODING);</span><br><span class="line">    &#125;</span><br><span class="line">&#125; <span class="keyword">else</span> <span class="keyword">if</span> (ROLLBACK.equals(currentQueryType))&#123;</span><br><span class="line">    </span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> PreparedStatement <span class="title function_">getPreparedStatement</span><span class="params">(Connection conn)</span> <span class="keyword">throws</span> SQLException &#123;</span><br><span class="line">    <span class="keyword">return</span> getPreparedStatement(conn,<span class="literal">false</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> PreparedStatement <span class="title function_">getPreparedStatement</span><span class="params">(Connection conn, <span class="type">boolean</span> callable)</span> <span class="keyword">throws</span> SQLException &#123;</span><br><span class="line">    PreparedStatement pstmt;</span><br><span class="line">    <span class="keyword">if</span> (callable) &#123;</span><br><span class="line">        pstmt = conn.prepareCall(getQuery()); </span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        pstmt = conn.prepareStatement(getQuery()); <span class="comment">// conn 是 DelegatingConnection，先不用管</span></span><br><span class="line">    &#125;</span><br><span class="line">    setQueryTimeout(pstmt, getIntegerQueryTimeout());</span><br><span class="line">    <span class="keyword">return</span> pstmt;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-
-
  
       <!-- reward -->
       
