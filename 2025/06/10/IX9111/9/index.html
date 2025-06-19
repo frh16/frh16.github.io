@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+
+
+<html lang="en">
+  
+
+    <head>
+      <meta charset="utf-8" />
+        
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>IX9111 - Unit 9. Virtual Processors and Threads |  blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    </head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-IX9111/9"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  IX9111 - Unit 9. Virtual Processors and Threads
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/06/10/IX9111/9/" class="article-date">
+  <time datetime="2025-06-10T13:34:55.000Z" itemprop="datePublished">2025-06-10</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/IX9111/">IX9111</a>
+  </div>
+ 
+    </div>
+      
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p><strong>Processors (CPUs) and Processes</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506102136917.png" alt="image-20250610213615829"></p>
+<p><strong>Notes:</strong></p>
+<p>On any computer, all processing of data is handled by one or more <em>processors</em>, sometimes called <em>CPUs</em> (<em>central processing units</em>). Each processor is responsible for handling the requests of many processes that are concurrently active on the system, but can only work on one process at a time. Therefore, a processor must determine when to work on one process, and when that process must yield to another. When a process yields, it copies information about what it was working on, called the process <em>context</em>, into memory. The processor then accepts the context from another process and continues work from where that process was previously interrupted. Moving the context of one process out of the CPU and moving another in is called a <em>context switch</em>.</p>
+<p><code>在任何计算机上，所有数据的处理都由一个或多个处理器（有时也称为 CPU，即中央处理器）来完成。每个处理器负责处理系统中同时运行的多个进程的请求，但一次只能处理一个进程。因此，处理器必须决定何时处理某个进程，以及何时该进程需要让位给另一个进程。当一个进程让位时，它会将正在处理的工作相关信息（称为进程的上下文）复制到内存中。随后，处理器会接受另一个进程的上下文，并从该进程之前被中断的地方继续工作。将一个进程的上下文移出 CPU，并将另一个进程的上下文移入 CPU 的过程称为上下文切换。</code></p>
+<p><strong>Virtual Processors and Threads</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506112343142.png" alt="image-20250611234339015"></p>
+<p><strong>Notes:</strong></p>
+<p>A <em>virtual processor (VP)</em> is a process that is designed to do work similar to the processor on a computer. While a processor is responsible for managing processes on the system, VPs are responsible for processing <em>threads</em>. A thread is the portion of a process that is responsible for a particular set of tasks. Like processes, threads compete for the attention of VPs, which can only process one thread at a time. Threads also have contexts associated with them, and <em>thread context switches</em> are performed to allow the virtual processors to interrupt work on one thread so that it can continue work with another. The scheduling of threads is managed by the threads themselves. A running thread is responsible for determining when to yield so that another thread has a chance to run on the VP.</p>
+<p><code>虚拟处理器（Virtual Processor，简称 VP）是一种旨在执行与计算机处理器类似工作的进程。处理器负责管理系统中的进程，而VP则负责处理线程。线程是进程中负责特定任务集的部分。与进程类似，线程会竞争VP的关注，因为VP一次只能处理一个线程。线程也有与之关联的上下文，会执行线程上下文切换，以便VP能够中断对一个线程的处理，转而继续处理另一个线程。线程的调度由线程自身管理。正在运行的线程负责决定何时让出（yield），以便其他线程有机会在 VP 上运行。</code></p>
+<p>Informix Dynamic Server uses several virtual processors to manage a database server. Each virtual processor is called <strong>oninit</strong>.</p>
+<p><code>IDS 使用多个 VP 来管理 server。每个 VP 都称为 oninit。</code></p>
+<p><strong>Thread Context Switching</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506122139040.png" alt="image-20250612213923903"></p>
+<p><strong>Notes:</strong></p>
+<p>Lets look deeper at the Informix Dynamic Server context-switching process. At a specific point of execution, the thread yields control of the virtual processor to another thread. The context switching algorithm consists of the following steps:</p>
+<p><code>让我们更深入地探讨一下 IDS 中的上下文切换（context-switching）过程。在执行的某个特定时刻，线程会将其对虚拟处理器（virtual processor）的控制权让渡给另一个线程。上下文切换算法包含以下步骤：</code></p>
+<ol>
+<li><p>Once the thread decides to yield, it places its <em>state</em> information in a series of control block structures.</p>
+<p><code>一旦线程决定让出（控制权），它会将其状态信息存入一系列的控制块结构中。</code></p>
+</li>
+<li><p>Next, it must put a pointer to itself on one of the wait queues, sleep queue or ready queue, depending on why the thread is yielding.</p>
+<p><code>接下来，该线程必须根据让出（控制权）的原因，将其自身的指针放入等待队列（wait queue）、休眠队列（sleep queue）或就绪队列（ready queue）中的一个。</code></p>
+</li>
+<li><p>The running thread notifies the next thread waiting in the ready queue. (Actually there are multiple ready queues, one for each priority.) Once the thread ID of the waiting thread is determined, the running thread can get the program counter of the waiting thread.</p>
+<p><code>正在运行的线程会通知就绪队列中下一个等待的线程。（实际上，存在多个就绪队列，每个优先级对应一个。）一旦确定了等待线程的线程ID，正在运行的线程就可以获取该等待线程的程序计数器（的值）。</code></p>
+</li>
+<li><p>Finally, the thread performs the actual context switch in the process. Since thread switching must occur quickly and efficiently, the thread switching algorithms are written in the assembly language, ported specifically to the platform the Informix Dynamic Server system runs on. The code in the thread switching functions is straightforward. It must simply:</p>
+<p><code>最后，该线程会在进程中执行实际的上下文切换。由于线程切换必须快速且高效地进行，因此线程切换算法是用汇编语言编写的，并专门针对 IDS 系统运行的平台进行了移植。线程切换函数中的代码简洁明了，它只需：</code></p>
+<p> <strong>-</strong> Flush the context of the currently running thread to its stack (<em>4a</em>)</p>
+<p><code>将当前正在运行的线程的上下文刷到其栈中(4a)</code></p>
+<p> <strong>-</strong> Load the context for the next thread to run from its stack (<em>4b</em>)</p>
+<p><code>从下一个要运行的线程的栈中加载其上下文(4b)</code></p>
+</li>
+</ol>
+<p><strong>When Threads Yield</strong></p>
+<p>Some events that can cause the thread to yield are:</p>
+<p><code>可能导致线程让出（控制权）的一些事件包括：</code></p>
+<p>– Waiting for a disk read or write operation</p>
+<p><code>等待磁盘读写操作完成</code></p>
+<p>– Waiting for an SQL request from the client</p>
+<p><code>等待来自客户端的 SQL 请求</code></p>
+<p>– Waiting for a lock or other resource</p>
+<p><code>等待锁或其他资源</code></p>
+<p>– There is no more work to do</p>
+<p><code>没有更多工作要做</code></p>
+<p>But internally, the threads yield when:</p>
+<p><code>但在内部，线程会在以下情况下让出（控制权）：</code></p>
+<p>– Waiting on a mutex</p>
+<p><code>等待互斥锁</code></p>
+<p>– Waiting on a condition</p>
+<p><code>等待条件变量满足</code></p>
+<p>– A yield call is encountered in the Dynamic Server code</p>
+<p><code>在 Dynamic Server 代码中遇到了一个 yield 调用</code></p>
+<p><strong>Notes:</strong></p>
+<p>下面这几行和上面重复</p>
+<p>Some common actions that might cause the thread to yield are:</p>
+<p> <strong>•</strong> Waiting for a disk read or write operation</p>
+<p> <strong>•</strong> Waiting for an SQL request from the client</p>
+<p> <strong>•</strong> Waiting for a lock or other resource</p>
+<p> <strong>•</strong> There is no more work to do.</p>
+<p>A thread also might yield control to another thread for no reason other than to give another thread a chance to run. The Informix Dynamic Server thread management code <em>does not</em> perform a <em>timesharing</em> version of thread scheduling. That is, threads do not yield the virtual processor after a certain period of time has elapsed. Nor can a thread be pre-empted (interrupted). </p>
+<p><code>线程也可能仅仅是为了给其他线程一个运行的机会，就将控制权让给另一个线程，而无需其他任何理由。IDS 的线程管理代码并不执行线程调度的分时共享版本。也就是说，线程不会在经过一定时间后自动让出虚拟处理器。同样，线程也不会被抢占（即被中断）。</code></p>
+<p>Internally, threads yield on one of the following cases:</p>
+<p><code>在内部，线程会在以下情况之一中让出（控制权）:</code></p>
+<p><strong>•</strong> The thread is waiting on a mutex. A mutex is a lock on an internal shared memory structure.</p>
+<p><code>线程正在等待一个互斥锁（mutex）。互斥锁是一种对内部共享内存结构的锁定机制。</code></p>
+<p><strong>•</strong> The thread is waiting on a condition. A condition is a method of waiting for an event to occur.</p>
+<p><code>线程正在等待一个条件（变量）。条件（变量）是一种等待事件发生的方法。</code></p>
+<p><strong>•</strong> To prevent a thread from using excessive processor time, there are many junctures in the Dynamic Server code at which running threads are required to yield.</p>
+<p><code>为了防止线程占用过多的处理器时间，在 Dynamic Server 代码中有许多关键点要求正在运行的线程让出（VP）控制权。</code></p>
+<p><strong>The IDS Thread Entity</strong></p>
+<p>The physical entity known as a thread consists of:</p>
+<p><code>线程这一物理实体由以下部分构成：</code></p>
+<p>– A set of structures, or control blocks. The three important control blocks are:</p>
+<p><code>一组结构体或控制块。其中三个重要的控制块是：</code></p>
+<p>• Session control block (scb)</p>
+<p>• Thread control block (tcb)</p>
+<p>• RSAM thread control block (rstcb)</p>
+<p>– The stack</p>
+<p>– The memory pools</p>
+<p><strong>Notes:</strong></p>
+<p>Many manuals (this one included) explain threads using more humanistic terms—they sleep, they wait, they work. But as humans are able to function because of their brains, the brains of a thread enable it to function within a process.</p>
+<p><code>许多手册（包括这本）都使用更具人文色彩的术语来解释线程——它们会sleep、会wait、会work。但正如人类因大脑而能够运作一样，线程的“大脑”也使其能够在进程内发挥作用。</code></p>
+<p>The <em>brain</em> of a thread is the physical information stored in shared memory. Major components include:</p>
+<p><code>线程的大脑指的是存储在共享内存中的物理信息。其主要组成部分包括：</code></p>
+<p><strong>•</strong> Control blocks. A <em>control block</em> is just a fancy name for a structure used as a big scratch pad, or work area. These control blocks store a large amount of information about the thread. The important control blocks include:</p>
+<p><code>控制块。所谓“控制块”，其实只是一个花哨的说法，它本质上就是一个被用作大型临时存储区（或工作区）的结构体。这些控制块存储了大量关于线程的信息。重要的控制块包括：</code></p>
+<p> <strong>-</strong> Session control block. The <em>session control block</em>, or <em>scb</em>, contains information about the session. When you first connect, the database server creates a session for you, which means it creates a session control block.</p>
+<p><code>会话控制块。这个“会话控制块”（Session Control Block），简称“scb”，包含了关于会话的信息。当你首次连接时，数据库服务器会为你创建一个会话，这意味着它会创建一个会话控制块。</code></p>
+<p> <strong>-</strong> Thread control block. The <em>thread control block</em>, or <em>tcb</em>, contains information about the thread. There is one thread control block for every thread running in the database server.</p>
+<p><code>线程控制块。这个“线程控制块”（Thread Control Block），简称“tcb”，包含了关于线程的信息。在数据库服务器中运行的每一个线程都有一个对应的线程控制块。</code></p>
+<p><strong>-</strong> RSAM thread control block. Certain threads running in a database server need access to a layer of Dynamic Server called RSAM, which handles disk I&#x2F;O requests, index management, page management, buffer management, and data replication. Some system threads and all of the user threads (spawned for a session) need an <em>RSAM thread control block</em> (<em>rstcb</em>). </p>
+<p><code>RSAM线程控制块。在 server 中运行的某些线程需要访问 Dynamic Server 的一个名为 RSAM 的层，该层负责处理磁盘I/O请求、索引管理、页管理、缓冲区管理以及数据复制。一些系统线程和所有用户线程（为会话而创建的）都需要一个“RSAM线程控制块”（RSAM Thread Control Block），简称“rstcb”。</code></p>
+<p>There are other control blocks that hold additional information about the thread, such as the <em>network control block</em> (<em>netscb</em>) and the <em>SQL control block</em> (<em>sqscb</em>).</p>
+<p><code>还有其他一些控制块用于存储关于线程的额外信息，例如“网络控制块”（network control block，简称 netscb）和“SQL 控制块”（SQL control block，简称 sqscb）。</code></p>
+<p><strong>•</strong> Stack. The <em>stack</em> holds data for the functions that a thread executes. It is similar to the stack concept in a process, but because multiple threads are operating in one process, each thread must have its own stack.</p>
+<p><code>栈（Stack）。线程在执行函数时所使用的数据存储在栈中。这与进程中的栈概念类似，但由于一个进程中可能有多个线程在同时运行，因此每个线程都必须拥有自己的栈。</code></p>
+<p> <strong>•</strong> Memory pools. <em>Memory pools</em> are not really a separate component of a thread. In fact, all of the information, including the stack and control blocks, are stored in memory pools in the virtual portion of the database server shared memory.</p>
+<p><code>内存池（Memory pools）。内存池实际上并非线程的一个独立组成部分。事实上，包括栈和控制块在内的所有信息，都存储在 server 共享内存的虚拟部分中的内存池里。</code></p>
+<p><strong>Session (User) Threads</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506150008942.png" alt="image-20250615000841804"></p>
+<p><em><strong>Notes:</strong></em></p>
+<p>The session control block is created when an application connects to the database server. The scb has information about the session and pointers to the session pool (which holds data used by the threads started for the session) and to the RSAM thread control block. The rstcb has a pointer to the thread control block that stores additional information about the thread.</p>
+<p><code>会话控制块（Session Control Block，简称 scb）是在应用程序连接到 server 时创建的。该会话控制块包含有关会话的信息，以及指向会话池（用于存储为该会话启动的线程所使用的数据）和 RSAM 线程控制块（RSAM Thread Control Block，简称 rstcb）的指针。而 RSAM 线程控制块（rstcb）则包含一个指向线程控制块（Thread Control Block）的指针，该线程控制块用于存储有关该线程的额外信息。</code></p>
+<p><strong>The Stack</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506151116747.png" alt="image-20250615111608624"></p>
+<p><strong>Notes:</strong></p>
+<p>The stack holds information about functions a thread has called, and the data associated with the functions. It is similar to the stack used in a UNIX process, except that every thread in the Informix Dynamic Server system has its own stack to track functions and data.</p>
+<p><code>栈用于存储线程所调用函数的相关信息以及与这些函数关联的数据。它类似于 UNIX 进程中使用的栈，不同之处在于，在 IDS 系统中，每个线程都拥有自己独立的栈，用以跟踪函数调用及相关数据。</code></p>
+<p>The <strong>onstat -g stk</strong> command dumps the contents of a stack for the thread ID you specify in the command. It lists:</p>
+<p><code>onstat -g stk 命令会转储（显示）你在命令中指定的线程 ID 所对应的栈内容。它会列出：</code></p>
+<table>
+<thead>
+<tr>
+<th>Stack ID for thread</th>
+<th>The thread ID and name</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>base</td>
+<td>The memory address of the base of the stack <code>栈底</code></td>
+</tr>
+<tr>
+<td>len</td>
+<td>The number of bytes allocated for the stack</td>
+</tr>
+<tr>
+<td>pc</td>
+<td>The program counter indicating our current location in the stack. When the thread yields the virtual processor (performs a context switch), this value is updated from the register for the process.<code>程序计数器用于指示我们在栈中的当前位置。当线程让出虚拟处理器（执行上下文切换）时，该值会从进程的寄存器中更新。</code></td>
+</tr>
+<tr>
+<td>tos</td>
+<td>The address in memory of the top of the stack. <code>栈顶</code></td>
+</tr>
+</tbody></table>
+<p>In addition, the output lists the functions from which the thread has not returned and the data associated with the thread. The most current function call is shown at the top of the listing.</p>
+<p><code>此外，输出还会列出线程尚未返回的函数以及与该线程关联的数据。最新的函数调用会显示在列表的顶部。</code></p>
+<p><strong>How a Session is Created</strong></p>
+<p>A poll thread picks up an incoming client message. For an existing connection, the request is simply passed to the appropriate sqlexec thread. For a new connection, the listen thread does the following:</p>
+<p><code>一个轮询线程（poll thread）会接收传入的客户端消息。对于已存在的连接，请求会直接传递给相应的 sqlexec 线程。而对于新连接，监听线程（listen thread）会执行以下操作：</code></p>
+<ol>
+<li><p>It allocates a new session control block.</p>
+<p><code>它会分配一个新的会话控制块。</code></p>
+</li>
+<li><p>It creates the session pool in the virtual portion of shared memory, giving it the same name as the session ID.</p>
+<p><code>它在共享内存的虚拟部分创建会话池（session pool），并为其赋予与会话 ID 相同的名称。</code></p>
+</li>
+<li><p>It allocates a new RSAM thread control block.</p>
+<p><code>它会分配一个新的 RSAM 线程控制块。</code></p>
+</li>
+<li><p>It allocates a new thread control block, initializing values such as the pointers to the previous and next tcbs, and the initial function to execute. The thread name specified in the thread control block is <strong>sqlexec</strong>.</p>
+<p><code>它会分配一个新的线程控制块（Thread Control Block, TCB），并初始化其中的值，例如指向上一个和下一个线程控制块的指针，以及要执行的初始函数。在线程控制块中指定的线程名称是 sqlexec。</code></p>
+</li>
+<li><p>It allocates the stack for the thread</p>
+<p><code>它会为该线程分配栈空间。</code></p>
+</li>
+<li><p>It sets the program counter in the stack to the location of the initial function to be executed.</p>
+<p><code>它会将栈中的程序计数器（Program Counter）设置为待执行的初始函数的地址位置。</code></p>
+</li>
+<li><p>It puts the thread control block on the ready queue.When the thread is put on the ready queue, it is ready for work.</p>
+<p><code>它将线程控制块（Thread Control Block, TCB）放入就绪队列（ready queue）。当线程被放入就绪队列时，它就已经准备好执行工作了。</code></p>
+</li>
+</ol>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506151143243.png" alt="image-20250615114319182"></p>
+<p><code>在 IDS 的后续版本中，会话及其相关结构会进行预分配，以减少客户端连接所需的时间。</code></p>
+<p><strong>Monitoring Threads</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506151155609.png" alt="image-20250615115542547"></p>
+<p><strong>Notes:</strong></p>
+<p>You can monitor the information stored in the three major control blocks for a thread in two ways: by using the <strong>onstat</strong> utility, or by querying <strong>sysmaster</strong> tables. The <strong>onstat</strong> utility hold a subset of the information stored in the control block. However, it shows only the information most relevant to administrators. Queries on the <strong>sysmaster</strong> tables can show all of the information in the control blocks.</p>
+<p><code>你可以通过两种方式来监控线程的三个主要控制块中存储的信息：一种是使用 onstat 工具，另一种是查询 sysmaster 表。onstat 工具包含控制块中存储的部分信息，但它仅显示对管理员来说最为相关的信息。而对 sysmaster 表的查询则可以展示控制块中的全部信息。</code></p>
+<p>If you write applications that include queries to <strong>sysmaster</strong>, it is recommended that you restrict queries to the views in <strong>sysmaster</strong> instead of tables. If there are any changes to the structure of system tables in future releases, your applications are less likely to be affected.</p>
+<p><code>如果你编写的应用程序包含对 sysmaster 的查询，建议将查询限制在 sysmaster 的视图上，而不是直接查询表。这样，如果未来版本中系统表的结构发生任何变化，你的应用程序受到的影响将会更小。</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506151202695.png" alt="image-20250615120200644"></p>
+<p>&#96;&#96;systcblst<code>、</code>sysrstcb<code>和</code>sysscblst<code>表中的列定义在</code>$GBASEDBTDIR&#x2F;etc&#x2F;sysmaster.sql 文件中。&#96;</p>
+<p><strong>All Threads: onstat -g ath</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506151218944.png" alt="image-20250615121852867"></p>
+<p><strong>Notes:</strong></p>
+<p>An easy way to monitor all threads on a database server is to run <strong>onstat -g ath</strong>. This command lists all system and user threads, the address of the tcb, the address of the rstcb, the priority, the status, the virtual class the thread is running on, and the thread name.</p>
+<p><code>监控数据库服务器上所有线程的一个简便方法是运行 onstat -g ath 命令。此命令会列出所有系统线程和用户线程，包括线程控制块（TCB）的地址、RSTCB 的地址、优先级、状态、线程正在运行的虚拟类，以及线程名称。</code></p>
+<p>You can easily identify system threads that do not access the RSAM layer because they do not have an rstcb address.</p>
+<p><code>你可以轻松识别出那些不访问 RSAM 层的系统线程，因为这些线程没有 rstcb 地址。</code></p>
+<p>You can also view lists of threads based on their state by using the following <strong>onstat -g</strong></p>
+<p><code>你还可以使用以下 onstat -g 命令（通常需要配合特定选项）来根据线程的状态查看线程列表。</code></p>
+<p>options:</p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506151219912.png" alt="image-20250615121958871"></p>
+<p><strong>Common Threads</strong></p>
+<table>
+<thead>
+<tr>
+<th>Thread name</th>
+<th>Virtual processor</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>sqlexec</td>
+<td>CPU</td>
+<td>Primary session thread that services SQL requests<br><code>服务于 SQL 请求的主会话线程</code></td>
+</tr>
+<tr>
+<td>main_loop</td>
+<td>CPU</td>
+<td>Wakes up every second to see if certain tasks need to be performed, such as checkpoints, LRU cleaning, etc.<br><code>每秒唤醒一次，以检查是否需要执行某些任务，例如检查点（checkpoints）、最近最少使用（LRU）清理等。</code></td>
+</tr>
+<tr>
+<td>flush_sub#</td>
+<td>CPU</td>
+<td>Page cleaning</td>
+</tr>
+<tr>
+<td>kaio</td>
+<td>CPU</td>
+<td>Performs administrative tasks for kernel asynchronous I&#x2F;O<br><code>为内核异步 I/O 执行管理任务</code></td>
+</tr>
+<tr>
+<td>btscanner</td>
+<td>CPU</td>
+<td>Cleans the b-tree scanner pool</td>
+</tr>
+<tr>
+<td>onmode_mon</td>
+<td>CPU</td>
+<td>onmode servicing thread</td>
+</tr>
+<tr>
+<td>lio vp #</td>
+<td>LIO</td>
+<td>Handles I&#x2F;O to the logical log</td>
+</tr>
+<tr>
+<td>pio vp #</td>
+<td>PIO</td>
+<td>Handles I&#x2F;O to the physical log</td>
+</tr>
+<tr>
+<td>aio vp #</td>
+<td>AIO</td>
+<td>Handles database I&#x2F;O; if kernel asynchronous I&#x2F;O is used, this thread handles I&#x2F;O to any file system files (e.g. sqlhosts)<br><code>处理数据库的 I/O 操作；如果使用了内核异步 I/O，则此线程负责处理与任何文件系统文件（例如 sqlhosts 文件）之间的 I/O 操作。</code></td>
+</tr>
+</tbody></table>
+<p><strong>Notes:</strong></p>
+<p>The table above and the one on the next page show some of the most commonly used threads. The threads used in communication between client and server are shown in the unit titled, <strong>Communications</strong>.</p>
+<p><code>上表展示了一些最常用的线程。在标题为“Communications”的 Unit 中展示了在客户端与服务器之间通信时所使用的线程。</code></p>
+<p><strong>Conditions</strong></p>
+<p><strong>Notes:</strong></p>
+<p>Conditions are mechanisms used in the database server that block threads from proceeding so that events can occur without interruption. Conditions, therefore, actually protect events. Conditions are structures that are created and destroyed dynamically in the virtual portion of shared memory.</p>
+<p><code>条件（Conditions）是数据库服务器中使用的一种机制，用于阻塞线程的继续执行，以便事件能够在不被中断的情况下发生。因此，条件实际上起到了保护事件的作用。条件是在共享内存的虚拟部分中动态创建和销毁的结构。</code></p>
+<p>“以便事件能够在不被中断的情况下发生” ，看不太懂，AI回答是：这线程wait，被唤醒后，安全的消费数据，不被中断。就像java的condition在lock和unlock之间。</p>
+<p>A thread that is waiting on a condition is waiting for something to happen, such as the completion of a checkpoint, or for a user to send an SQL statement from the client. The condition structure is kept in shared memory and is created and destroyed dynamically. You can view a list of active conditions by running the command <strong>onstat -g con</strong>.</p>
+<p><code>一个在条件（condition）上等待的线程，是在等待某件事情的发生，比如检查点（checkpoint）的完成，或者等待用户从客户端发送一条 SQL 语句。条件结构存储在共享内存中，并且是动态创建和销毁的。你可以通过运行命令 onstat -g con 来查看活动条件的列表。</code></p>
+<p>A blocking checkpoint is one example of an event that is handled by a condition. To prevent threads from entering critical sections while transactions are blocked during a checkpoint, a condition called <strong>cp</strong> is used. Before a thread enters a critical section, it determines if a checkpoint has been requested. If so, it calls a function called <strong>mt_wait</strong> (passing a pointer to the <strong>cp</strong> condition). The <strong>mt_wait</strong> function modifies the condition structure, adding the thread to the wait queue.</p>
+<p><code>阻塞式检查点（blocking checkpoint）就是由条件（condition）处理的事件的一个例子。为了防止在检查点执行期间事务被阻塞时，线程进入关键代码段（critical section），会使用一个名为 cp 的条件。在线程进入关键代码段之前，它会判断是否已请求执行检查点。如果是，线程会调用一个名为 mt_wait 的函数（并向该函数传递指向 cp 条件的指针）。mt_wait 函数会修改条件结构，将该线程添加到等待队列中。</code></p>
+<p>新事务，由于检测到检查点已请求，就放进等待队列，所以这防止了阻塞</p>
+<p>After the <strong>main_loop</strong> thread has released the global transaction block, it moves all threads waiting for the checkpoint condition from the wait queue to the ready queue.As each waiter runs again, it double-checks the status of the condition. If the condition is not satisfied, it waits again. This extra step is necessary because the state of the condition could have changed since the thread was moved from the wait queue to the ready queue.</p>
+<p><code>在 main_loop 线程释放全局事务块（global transaction block）之后，它会将所有正在等待检查点条件（checkpoint condition）的线程从等待队列（wait queue）移动到就绪队列（ready queue）。当每个等待线程再次运行时，它会再次检查条件的当前状态。如果条件仍未满足，线程会再次进入等待状态。这一额外步骤是必要的，因为从线程被从等待队列移动到就绪队列的这段时间内，条件的状态可能已经发生了变化。</code></p>
+<p><strong>Note</strong></p>
+<p>With the introduction of non-blocking checkpoints in IDS 11, threads rarely have to wait on a <strong>cp</strong> condition.</p>
+<p><code>在 IDS 11 中引入了非阻塞式检查点（non-blocking checkpoints）后，线程很少需要再在 cp 条件（condition）上等待。</code></p>
+<p>Although the checkpoint condition is a good example of the value of condition structures, their most common use is as a simple communication mechanism between two threads. For instance, in a parallel database query (PDQ) operation, a producer thread, whose job is to feed data to a consumer thread, uses an <strong>awaitMC%d</strong> condition to notify the waiting consumer when data is available. Also, the shared memory poll thread, <strong>sm_poll</strong> uses a condition to notify an <strong>sqlexec</strong> thread that a front-end message has arrived for it.</p>
+<p><code>虽然检查点条件很好地展示了条件结构的价值，但条件结构最常见的用途是作为两个线程之间的一种简单通信机制。例如，在并行数据库查询（PDQ）操作中，负责向消费者线程提供数据的生产者线程，会使用一个名为 awaitMC%d 的条件，在数据可用时通知正在等待的消费者线程。此外，共享内存轮询线程 sm_poll 也会利用一个条件来通知 sqlexec 线程，有前端发送的消息已到达，供其处理。</code></p>
+<p><strong>Internal Locking Through Mutexes</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506172210348.png" alt="image-20250617221021215"></p>
+<p><strong>Notes:</strong></p>
+<p>A <em>mutex</em> (short for mutually exclusive) is a fancy name for a method that protects a memory structure from other threads. Dynamic Server uses mutexes to protect many memory structures, such as the lock list, or the session control block.</p>
+<p><code>互斥量（mutex，是mutually exclusive（互斥）的缩写）是一种用于保护内存结构免受其他线程干扰的方法，这一称谓听起来颇为专业。Dynamic Server 使用互斥量来保护许多内存结构，例如 lock list 或 session control block。</code></p>
+<p><strong>Locking a mutex</strong></p>
+<p>Locking a mutex is a multi-step process:</p>
+<p><code>锁定一个互斥量是一个多步骤的过程：</code></p>
+<ol>
+<li><p>First the thread must lock the mutex lock just to see if the mutex itself is locked. A mutex is a structure like any other and needs to be protected from multiple threads attempting to obtain the mutex at the same time.</p>
+<p><code>首先，线程必须先尝试锁定互斥量（即获取互斥锁），以此判断该互斥量本身是否已被锁定。互斥量和其他任何结构一样，需要防止多个线程同时尝试获取它。</code></p>
+</li>
+<li><p>Once the thread obtains the mutex lock, it checks to see if any thread holds the mutex. </p>
+<p><code>一旦线程获取了互斥锁，它就会检查是否有其他线程持有该互斥量。</code></p>
+</li>
+<li><p>If there is no holder, the thread can designate itself as the holder.</p>
+<p><code>如果没有持有者，该线程就可以将自己指定为持有者。</code></p>
+</li>
+<li><p>If there is a holder, the thread can put itself on the wait queue for the mutex.</p>
+<p><code>如果已经有持有者，该线程可以把自己加入到该互斥量的等待队列中。</code></p>
+</li>
+<li><p>The thread unlocks the mutex lock.</p>
+<p><code>该线程释放（或解开）互斥锁。</code></p>
+</li>
+</ol>
+<p><strong>How long do mutexes stay around?</strong></p>
+<p><code>互斥量会保留（或存在）多久？</code></p>
+<p>Mutex structures are generally embedded in the structures they’re meant to protect. Those structures are constantly being allocated and freed as threads are spawned, perform work, and exit. An example of a fairly volatile mutex is the one embedded in a thread control block. Each instance of that mutex only lives as long as the thread lives. Some mutexes, such as the one protecting the buffer header structure, are allocated for the life of the database server.</p>
+<p><code>互斥量结构通常嵌入在它们旨在保护的那些结构中。随着线程的创建、执行任务和退出，这些结构会不断地被分配和释放。一个相当“易变”（即频繁创建和销毁）的互斥量示例是嵌入在 thread control block 中的那个互斥量。该互斥量的每个实例仅在其所属线程的生命周期内存在。而有些互斥量，例如用于保护缓冲区头结构的互斥量，则会在数据库服务器的整个生命周期内被分配并持续存在。</code></p>
+<p>There are other cases in which the mutex is not part of another structure; the mutex memory is allocated when the mutex is needed and removed when it is no longer used.</p>
+<p><code>在其他情况下，互斥量并不是另一个结构的一部分；当需要互斥量时，会为其分配内存，而当不再需要它时，则会释放该内存。</code></p>
+<p><strong>The example diagram</strong></p>
+<p>In the example shown in the slide, Thread 1 holds the mutex, while Thread 2, Thread 3, and Thread 4 are waiting.</p>
+<p><code>在幻灯片所示的示例中，线程 1 持有互斥量，而线程 2、线程 3 和线程 4 正在等待。</code></p>
+<p><strong>Monitoring Mutexes and Conditions</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506172228820.png" alt="image-20250617222837748"></p>
+<p><strong>Notes:</strong></p>
+<p>The chart above shows the <strong>onstat</strong> options and <strong>sysmaster</strong> tables you can use to view mutexes and conditions.</p>
+<p><code>上图展示了可用于查看互斥量和条件变量的 onstat options 以及 sysmaster tables。</code></p>
+<p><strong>Monitoring Locked Mutexes: onstat –g lmx</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506172237476.png" alt="image-20250617223745406"></p>
+<p><strong>Notes:</strong></p>
+<p>The <strong>onstat -g lmx</strong> command shows all locked mutexes.</p>
+<p>The <strong>onstat -g wmx</strong> command shows only locked mutexes that have waiting threads.</p>
+<p><code>onstat -g wmx 命令仅显示有线程等待的已锁定互斥量。</code></p>
+<p><strong>All Mutexes</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506172240553.png" alt="image-20250617224002494"></p>
+<p><strong>Notes:</strong></p>
+<p>The <strong>onstat -g amx</strong> command shows all mutexes, even if they are not held by any thread. If a mutex is not held, the value in the holder column is <strong>-1</strong>.</p>
+<p><code>onstat -g amx 命令会显示所有的互斥量，即使它们当前没有被任何线程持有。如果一个互斥量未被持有，那么在持有者（holder）列中显示的值将是 -1。</code></p>
+<p><strong>Configuration Parameters Affecting Mutexes</strong></p>
+<p> QSTATS – collects mutex statistics</p>
+<p> SINGLE_CPU_VP – If set to &gt;0, fewer mutexes are acquired</p>
+<p><strong>Notes:</strong></p>
+<p>The QSTATS parameter is a configuration parameter that causes mutex statistics to be collected. Set the QSTATS parameter to any value. For example:</p>
+<p><code>QSTATS 参数是一个配置参数，用于触发互斥量（mutex）统计信息的收集。可将 QSTATS 参数设置为任意值。例如：</code></p>
+<p>​		QSTATS 1</p>
+<p>QSTATS should not be set in a production system, because it can slow performance.If the SINGLE_CPU_VP configuration parameter is set to 1, the need to acquire many mutexes is not necessary because there is no contention with other CPU VP threads.This is true for the following reasons:</p>
+<p><code>在生产系统中不应设置 QSTATS 参数，因为它可能会降低系统性能。如果将 SINGLE_CPU_VP 配置参数设置为 1，那么由于不存在与其他 CPU 虚拟处理器（VP）线程的竞争，也就无需获取多个互斥量。原因如下：</code></p>
+<p> <strong>•</strong> A thread never yields while holding a mutex </p>
+<p><code>线程在持有互斥量（mutex）期间永远不会让出（CPU）执行权</code></p>
+<p> <strong>•</strong> With only one CPU VP only one thread (of the CPU VP class) can be running</p>
+<p><code>在只有一个 CPU 虚拟处理器（CPU VP）的情况下，同一时间只能有一个属于该 CPU VP 类的线程在运行。</code></p>
+<p><strong>Mutex Queue Statistics: onstat –g qst</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506192213146.png" alt="image-20250619221343021"></p>
+<p><strong>Notes:</strong></p>
+<p>The mutex structure contains a number of statistics that can give developers an idea of which mutexes might be causing a bottleneck in the server. Normally, these statistics fields are not populated, but turning on queuing statistics for mutexes is as simple as setting QSTATS.</p>
+<p><code>互斥量（mutex）结构中包含多个统计信息字段，这些字段能够帮助开发者识别出 server 中可能导致瓶颈的互斥量。通常情况下，这些统计信息字段是空的，但开启互斥量的排队统计信息非常简单，只需设置 QSTATS 参数即可。</code></p>
+<p><strong>Warning</strong></p>
+<p><em>Setting QSTATS might cause some degradation in performance. As a rule, you should not</em> <em>set QSTATS on servers in which performance is critical.</em></p>
+<p><code>设置 QSTATS 可能会导致性能有所下降。一般来说，在性能至关重要的 server 上，不应设置 QSTATS。</code></p>
+<p>Once you have set this configuration parameter and restarted the database server, you can execute the following command to show statistics for any mutex that is currently allocated in memory.</p>
+<p><code>一旦你设置了该配置参数并重新启动了 database server，你就可以执行以下命令来显示当前在内存中分配的任何互斥量的统计信息。</code></p>
+<p>​		onstat -g qst</p>
+<p>Statistics include the following information:</p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506192219161.png" alt="image-20250619221951093"></p>
+<p><strong>Mutex queue statistics and tuning</strong></p>
+<p>Mutex queue statistics don’t offer much information to an administrator, except to show which shared memory structures are being accessed the most. The mutex wait queues increase when the database server is heavily used. This isn’t a bad thing—just an indication of a busy database server. </p>
+<p><code>互斥量队列统计信息对管理员来说提供的信息并不多，除了能显示哪些共享内存结构被访问得最频繁之外。当 database server 使用繁忙时，互斥量等待队列的长度会增加。这并不是一件坏事——它只是表明 database server 处于繁忙状态。</code></p>
+<p>Developers can use mutex statistics to make sure that threads are not locking shared memory structures too long.</p>
+<p><strong>Why Are Threads Waiting?</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506192223296.png" alt="image-20250619222338229"></p>
+<p><strong>Notes:</strong></p>
+<p>The <strong>onstat -g wst</strong> command displays statistics about the time a thread is waiting and the reason why it is waiting.</p>
+<p><code>onstat -g wst 命令会显示线程等待的时间以及线程等待原因的相关统计信息。</code></p>
+<p>Statistics on thread waits are not normally collected because of the overhead required to calculate and store them. To collect statistics for this report, you must add a line in the configuration file to set the WSTATS parameter to a non-zero value. For example:</p>
+<p><code>通常情况下，由于计算和存储线程等待统计信息会产生额外的开销，因此不会收集这些统计信息。若要为这份报告收集统计信息，你必须在配置文件中添加一行，将 </code>WSTATS<code> 参数设置为非零值。例如：</code></p>
+<p>​		WSTATS 1</p>
+<p><strong>Warning</strong></p>
+<p><em>Setting the WSTATS parameter might cause performance degradation. You should not set</em> <em>this parameter on servers in which performance is critical.</em></p>
+<p><code>设置 WSTATS 参数可能会导致性能下降。你不应在性能至关重要的 server 上设置此参数。</code></p>
+<p>Each thread is listed once per <em>state</em>, such as <strong>yield</strong>, <strong>ready</strong>, or <strong>run</strong>. The average and maximum times are usually listed in millionths of a second. If an <strong>s</strong> follows the number, the unit is seconds.</p>
+<p><code>每个线程会按照其状态（如 yield、ready 或 run）分别列出一次。平均时间和最大时间通常以百万分之一秒为单位列出。如果数字后面跟着一个 s，则单位是秒。</code></p>
+<p>The <strong>onstat -g wst</strong> report is useful for troubleshooting. It’s the only way, for example, that you can tell if the thread had a chance to run, and how often it runs compared to other threads. Also, if a thread’s maximum or average run time really stands out as high, it could be an indication of a runaway thread.</p>
+<p><code>onstat -g wst 报告对于故障排查非常有用。例如，这是你唯一能够判断线程是否有机会运行，以及与其他线程相比其运行频率的方法。此外，如果某个线程的最大或平均运行时间显著偏高，这可能表明该线程是一个失控线程（runaway thread）。</code></p>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://frh16.github.io/2025/06/10/IX9111/9/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2025/06/07/IX9111/8/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">IX9111 - Unit 8. Sbspaces</div>
+      </a>
+    
+  </nav>
+
+  
+   
+    
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2023-2025
+        <i class="ri-heart-fill heart_icon"></i> fengrh
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    
+
+  </div>
+</body>
+
+</html>
