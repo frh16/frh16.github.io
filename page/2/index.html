@@ -67,6 +67,68 @@
     
     
     <article
+  id="post-SQLsmith/SQLsmith"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h2 itemprop="name">
+  <a class="article-title" href="/2024/04/07/SQLsmith/SQLsmith/"
+    >SQLsmith</a> 
+</h2>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/04/07/SQLsmith/SQLsmith/" class="article-date">
+  <time datetime="2024-04-07T12:57:01.000Z" itemprop="datePublished">2024-04-07</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/SQLsmith/">SQLsmith</a>
+  </div>
+ 
+    </div>
+      
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>源码：<a target="_blank" rel="noopener" href="https://github.com/anse1/sqlsmith">https://github.com/anse1/sqlsmith</a> tag:v1.4</p>
+<p>在Centos7上用CLion看代码，装了一些东西（顺序不一定），直到项目右键”Reload CMake Project”不报错为止，然后代码点击才能跳转<br>yum install postgresql14<br>yum install gcc-c++<br>yum clean all<br>rm -rf &#x2F;var&#x2F;cache&#x2F;yum&#x2F;*<br>yum install <a target="_blank" rel="noopener" href="https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm">https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm</a><br>yum install llvm5.0-devel<br>yum install postgresql14-devel<br>yum install libpqxx libpqxx-devel</p>
+<p>目的是看懂执行逻辑，不深入c++语法，只查了一下make_shared的含义：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">make_shared</span>&lt;query_spec&gt;((<span class="keyword">struct</span> prod *)<span class="number">0</span>, s); <span class="comment">// 它会导致query_spec构造函数的调用，括号里是传入的2个参数</span></span><br></pre></td></tr></table></figure>
+
+<p>.cc文件，当做.cpp理解即可</p>
+<p>入口：sqlsmith.cc，只看postgres相关逻辑</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// main()</span></span><br><span class="line"><span class="comment">// 导致schema_pqxx构造函数调用，见下面postgres.cc</span></span><br><span class="line">schema = <span class="built_in">make_shared</span>&lt;schema_pqxx&gt;(options[<span class="string">&quot;target&quot;</span>], options.<span class="built_in">count</span>(<span class="string">&quot;exclude-catalog&quot;</span>));</span><br><span class="line"></span><br><span class="line"><span class="comment">// 执行sqlsmith时，加--dry-run，会把随机生成的语句写到日志里，不会执行</span></span><br><span class="line"><span class="keyword">if</span> (options.<span class="built_in">count</span>(<span class="string">&quot;dry-run&quot;</span>)) &#123;</span><br><span class="line">    <span class="keyword">while</span> (<span class="number">1</span>) &#123;</span><br><span class="line">        shared_ptr&lt;prod&gt; gen = <span class="built_in">statement_factory</span>(&amp;scope);</span><br><span class="line">        gen-&gt;<span class="built_in">out</span>(cout);</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">auto</span> l : loggers)</span><br><span class="line">            l-&gt;<span class="built_in">generated</span>(*gen);</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;;&quot;</span> &lt;&lt; endl;</span><br><span class="line">        queries_generated++;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (options.<span class="built_in">count</span>(<span class="string">&quot;max-queries&quot;</span>)</span><br><span class="line">            &amp;&amp; (queries_generated &gt;= <span class="built_in">stol</span>(options[<span class="string">&quot;max-queries&quot;</span>])))</span><br><span class="line">            <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>postgres.cc</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">schema_pqxx::<span class="built_in">schema_pqxx</span>(std::string &amp;conninfo, <span class="type">bool</span> no_catalog) : <span class="built_in">c</span>(conninfo)</span><br><span class="line">&#123;</span><br><span class="line">  <span class="comment">// 使用 libpqxx (PostgreSQL C++ API) 读元数据，包括：</span></span><br><span class="line">    </span><br><span class="line">  <span class="comment">// types</span></span><br><span class="line">  <span class="comment">// name,oid,typdelim,typrelid,typelem,typarray,typtype</span></span><br><span class="line">    </span><br><span class="line">  <span class="comment">// tables </span></span><br><span class="line">  <span class="comment">// name，schema，is_insertable，is_base_table（后边，只有是true的表才有机会从中随机）</span></span><br><span class="line">    </span><br><span class="line">  <span class="comment">// columns and constraints</span></span><br><span class="line">  <span class="comment">// operators</span></span><br><span class="line">  <span class="comment">// routines</span></span><br><span class="line">  <span class="comment">// routine parameters</span></span><br><span class="line">  <span class="comment">// aggregates</span></span><br><span class="line">  <span class="comment">// aggregate parameters</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">ifdef</span> HAVE_LIBPQXX7</span></span><br><span class="line">  c.<span class="built_in">close</span>();</span><br><span class="line"><span class="meta">#<span class="keyword">else</span></span></span><br><span class="line">  c.<span class="built_in">disconnect</span>();</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">  <span class="built_in">generate_indexes</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <footer class="article-footer">
+       
+    </footer>
+  </div>
+
+   
+    
+</article>
+
+    
+    <article
   id="post-gbase8s/物理日志"
   class="article article-type-post"
   itemscope

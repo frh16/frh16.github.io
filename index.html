@@ -67,6 +67,429 @@
     
     
     <article
+  id="post-IX9111/10"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h2 itemprop="name">
+  <a class="article-title" href="/2025/06/21/IX9111/10/"
+    >IX9111 - Unit 10.Shared Memory Architecture</a> 
+</h2>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/06/21/IX9111/10/" class="article-date">
+  <time datetime="2025-06-21T09:08:59.000Z" itemprop="datePublished">2025-06-21</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/IX9111/">IX9111</a>
+  </div>
+ 
+    </div>
+      
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p><strong>Shared Memory</strong></p>
+<p>Shared memory is memory that is allocated by one process, yet can be accessed by any process with permission to do so.</p>
+<p><code>共享内存是指由一个进程分配的内存空间，但任何获得相应权限的进程均可对其进行访问。</code></p>
+<p>– One process creates shared memory by allocating one or more segments. Like regular files, shared memory segments are created with permissions, an owner ID, group ID, even a name.</p>
+<p><code>一个进程通过分配一个或多个段(segment)来创建共享内存。与常规文件类似，共享内存段在创建时会设置访问权限、owner ID、group ID，甚至还可以指定 name。</code></p>
+<p>– Any process with permission to do so can attach to the memory segments and treat them as its own.</p>
+<p><code>任何获得相应权限的进程都可以 attach 到这些内存段，并将其视为自己的内存来使用。</code></p>
+<p>– The OS does not let this get out of hand. Shared memory is a kernel resource. There are kernel-defined limits to the size of shared memory as a whole, the size of individual segments, the total number of segments in the system, and the number to which one process can attach.</p>
+<p><code>操作系统不会让这种情况失去控制。共享内存是一种内核资源。对于共享内存的整体大小、单个段的大小、系统中段的总数以及一个进程能够 attach 的段数，内核都设定了相应的限制。</code></p>
+<p><strong>Notes:</strong></p>
+<p>Shared memory is truly one of the finest features of UNIX and Linux. In the past, it has been implemented in very different ways on different platforms, but with the most recent versions of UNIX, most shared memory features have become standardized.</p>
+<p><code>共享内存确实是 UNIX 和 Linux 系统中最为出色的特性之一。在过去，不同平台对共享内存的实现方式大相径庭，但在最新版本的 UNIX 系统中，大多数共享内存特性都已实现了标准化。</code></p>
+<p>Shared memory is built from separate <em>segments</em>. A shared memory segment is treated much like a regular file. Each is <em>created</em> and owned by a particular user, and can be read or even modified by other users depending on its permissions. A shared memory segment even has a <em>name</em>, a unique identifier chosen by the creating process.</p>
+<p><code>共享内存由独立的段（segments）构成。共享内存段的处理方式与常规文件颇为相似。每个共享内存段都由特定用户创建并拥有，其他用户能否对其进行读取甚至修改，取决于该段的权限设置。共享内存段甚至还拥有一个名称，即由创建进程所选定的唯一标识符。</code></p>
+<p>In shared memory lingo, a process <em>attaches</em> to a shared memory segment in order to access it. From the perspective of the process itself, the shared memory segment is attached to the memory space of the process. In fact, it looks no different to the process than private memory. Unless the process is programmed to find out, it need never know that other processes are accessing the same memory addresses.</p>
+<p><code>在共享内存的专业术语中，一个进程若要访问共享内存段，需要先关联（attaches）到该共享内存段。从进程自身的角度来看，共享内存段会被关联到该进程的内存空间中。实际上，对于进程而言，共享内存段与私有内存看起来并无二致。除非进程被编程以进行特定检测，否则它无需知晓其他进程也在访问相同的内存地址。</code></p>
+<p>When a process makes a request of the operating system to attach it to a shared memory segment, it tells the operating system where in its address space to map the memory.</p>
+<p><code>当进程向操作系统提出关联（attach）到共享内存段的请求时，它会告知操作系统将该共享内存映射到其地址空间的哪个位置。</code></p>
+<p><strong>Shared Memory Portions</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506211752067.png" alt="image-20250621175241975"></p>
+<p><strong>Notes:</strong></p>
+<p>Informix Dynamic Server shared memory is divided into three portions, the resident portion, the virtual portion, and the message portion. The term <em>portion</em> used in this context is nothing more than a collection of shared memory segments seen as a logical set of memory by the database server. Each portion contains a unique set of information about the server:</p>
+<p><code>IDS 的共享内存被划分为三个部分，分别是驻留部分（resident portion）、虚拟部分（virtual portion）和消息部分（message portion）。在此上下文中，“部分（portion）”一词仅指 database server 视为一个逻辑内存集合的一组共享内存段。每个部分都包含关于 server 的独特信息集：</code></p>
+<p> <strong>•</strong> The <em>resident portion</em> contains structures that are fixed in size, such as the lock table, the LRU structures, and most significantly, the buffer pool. It is termed <em>resident</em>, because you can set these shared memory segments to stay resident in memory, even if they are not being used. The structure of this portion of shared memory has not changed significantly since early versions of Informix Dynamic Server. </p>
+<p><code>驻留部分（resident portion）包含一些大小固定的数据结构，例如 lock table、LRU structures，以及最为关键的 buffer pool。之所以称其为驻留，是因为你可以将这些共享内存段设置为始终驻留在内存中，即使它们当前并未被使用。自 IDS 的早期版本以来，这部分共享内存的结构并未发生显著变化。</code></p>
+<p> <strong>•</strong> The <em>virtual portion</em> contains any shared information in the database server that can grow or shrink, or be allocated or de-allocated. The number of segments in the virtual portion can grow as needed during the life of the database server. We’ll discuss how memory is managed in this portion later in the chapter.</p>
+<p><code>虚拟部分（virtual portion）包含数据库服务器中所有大小可变、能够动态增长或缩减、或是可被分配与释放的共享信息。在 database server 的运行期间，虚拟部分中的段（segment）数量可以根据需要进行动态增长。我们将在本章稍后部分讨论该部分内存是如何进行管理的。</code></p>
+<blockquote>
+<p>shrink 收缩 英[ʃrɪŋk]美[ʃrɪŋk]</p>
+</blockquote>
+<p> <strong>•</strong> The <em>message portion</em> contains message buffers that are used for shared memory communication. The segments in this portion have read&#x2F;write permissions for all users.</p>
+<p><code>消息部分（message portion）包含用于共享内存通信的消息缓冲区。该部分中的段对所有用户均设有读写权限。</code></p>
+<p><strong>Viewing Shared Memory</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506211803018.png" alt="image-20250621180328956"></p>
+<p><strong>Notes:</strong></p>
+<p>The <strong>onstat</strong> utility reads the Dynamic Server shared memory structures and report the contents of shared memory the instant it is run. This means the contents of shared memory could be changing as they are being printed (as no memory locking is done by <strong>onstat</strong>). If any strange circumstances are found from one run of <strong>onstat</strong>, you should not assume anything is wrong until several runs report the same situation.</p>
+<p><code>onstat 工具会读取 Dynamic Server 的共享内存结构，并在运行该工具的瞬间报告共享内存的内容。这意味着在打印共享内存内容的过程中，这些内容可能会发生变化（因为 onstat 工具不会对内存进行锁定）。如果在使用 onstat 工具进行某次运行时发现了异常情况，你不应立即假定存在问题，而应多次运行该工具，只有在多次运行都报告相同情况时，才应考虑可能存在问题。</code></p>
+<p>The <strong>onstat</strong> utility prints out the contents of the structures maintained in shared memory. Since these tables keep track of all activity in the database server, this tool gives a good picture of what is going on in the system at the time it is run. Any user can run <strong>onstat</strong>, but for security purposes, some options may not be available to non-<em>informix</em> users.</p>
+<p><code>onstat 工具会输出存储在共享内存中的数据结构内容。由于这些数据结构（通常以表格形式存在）会跟踪 database server 中的所有活动，因此该工具能够清晰地展示在工具运行时刻系统内部正在发生的状况。任何用户都可以运行 onstat 工具，但出于安全考虑，对于非 informix 用户，某些选项可能不可用。</code></p>
+<p>Generally, <strong>onstat</strong> does no disk I&#x2F;O of the database server; it reads from shared memory alone (there are a few options that read from disk files). Because it places no locks on shared memory resources, it does not impact the performance of any IDS applications.</p>
+<p><code>通常情况下，onstat 工具不会对 database server 执行任何磁盘 I/O 操作；它仅从共享内存中读取数据（不过，有少数选项会从磁盘文件中读取数据）。由于该工具不会对共享内存资源施加任何锁，因此它不会对任何 IDS 应用程序的性能产生影响。</code></p>
+<p>Another way to access the same data in shared memory is by querying the tables and views in the <strong>sysmaster</strong> database. Most of the tables in this database are not really tables, but cue the database server to look at shared memory structures instead.</p>
+<p><code>另一种访问共享内存中相同数据的方法是查询 sysmaster 数据库中的表和视图。该数据库中的大多数“表”实际上并非传统意义上的存储数据的表，而是作为提示，引导 database server 去查看共享内存中的结构。</code></p>
+<p><strong>Process Space: How Shared Memory Fits In</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506221319780.png" alt="image-20250622131936662"></p>
+<p><strong>Notes:</strong></p>
+<p>The arrangement of the various segments within a process is highly dependent on machine architecture, but for the sake of an example, one possible layout is pictured above.</p>
+<p><code>进程内各段(segment)的具体排列方式高度依赖于机器架构，不过，为了便于说明，上图展示了一种可能的布局示例。</code></p>
+<p>The important point of the illustration to note is that once a process has attached to a particular group of shared memory segments, the memory is made to look and feel just like its own private memory.</p>
+<p><code>该示意图需要关注的关键点在于，一旦一个进程附加到一组特定的共享内存段上，这些内存从外观和操作感受上就会如同该进程自身的私有内存一般。</code></p>
+<p><strong>Shared memory base address</strong></p>
+<p>As is true for each privately allocated block of memory within the heap, the operating system must provide the process with the starting address of the segment group. When attaching to shared memory segments with the <strong>shmat</strong> function, the process requests a particular base address. On success, <strong>shmat</strong> returns the address of the memory, which normally matches the requested address, but might have been adjusted for alignment or other purposes.</p>
+<p><code>就如同堆（heap）内每一块私有分配的内存一样，操作系统必须向进程提供该 segment group 的起始地址。当进程使用 shmat 函数附加到共享内存段时，它会请求一个特定的基地址。如果操作成功，shmat 会返回该内存的地址，该地址通常与请求的地址一致，但可能为了对齐或其他目的而进行了调整。</code></p>
+<p>Note that depending on its proximity to other process segments, a shared memory base address can have an effect on the amount of private memory and&#x2F;or stack space available. This explains why, on some platforms, raising the SHMBASE configuration parameter can cure o<em>ut of heap space</em> problems for engine processes. On most platforms, however, due to their process space layout, an <strong>oninit</strong> process does not benefit in the same way if SHMBASE is increased.</p>
+<p><code>需要注意的是，共享内存基地址与其他进程段之间的邻近关系可能会影响可用的私有内存和/或栈空间的大小。这就解释了为什么在某些平台上，提高 SHMBASE 配置参数可以解决引擎进程出现的“堆空间不足”问题。然而，在大多数平台上，由于进程空间布局的原因，即使增加 SHMBASE 的值，oninit 进程也无法以同样的方式受益。</code></p>
+<blockquote>
+<p>proximity<br>英[prɒkˈsɪməti] 美[prɑːkˈsɪməti]<br>n.接近;(时间或空间)邻近;靠近;</p>
+</blockquote>
+<p><strong>Shared Memory Kernel Parameters</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506221333022.png" alt="image-20250622133325804"></p>
+<p><strong>Notes:</strong></p>
+<p>Kernel parameters that impose limits on shared memory usage vary from platform to platform, but the four parameters pictured above are fairly common.</p>
+<p><code>对共享内存使用量施加限制的内核参数因平台而异，但上图所示的四个参数相当常见。</code></p>
+<blockquote>
+<p>impose<br>英[ɪmˈpəʊz] 美[ɪmˈpoʊz]<br>v.把…强加于;使接受，使意识到;推行，采用(规章制度);迫使;强制实行;勉强（某人做某事）;使(别人)接受自己的意见;</p>
+</blockquote>
+<p><strong>•</strong> SHMMAX (bytes) – This value is the maximum size of a segment.</p>
+<p><code>这个值表示段（segment）的最大大小。</code></p>
+<p>上图10页，每页1K(1024字节)，所以是10240 bytes</p>
+<p><strong>•</strong> SHMSEG (segments) This is the maximum number of segments to which one process can attach.</p>
+<p><code>这是一个进程可以附加的共享内存段的最大数量。</code></p>
+<p><strong>•</strong> SHMMNI (segments) – This is the maximum number of shared memory segments that can be created system wide.</p>
+<p><code>这是整个系统范围内可以创建的共享内存段的最大数量。</code></p>
+<p><strong>•</strong> SHMALL (clicks) – This is the maximum number of system pages that can be allocated for shared memory system wide. Remember that system pages have nothing to do with Informix Dynamic Server pages. The size of a system page is usually one kilobyte.</p>
+<p><code>这是整个系统范围内可为共享内存分配的系统页面的最大数量。请注意，系统页面与 IDS 页面毫无关系。系统页面的大小通常为一千字节（即 1KB）。</code></p>
+<p><strong>Shared Memory Key</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506221351519.png" alt="image-20250622135131435"></p>
+<p><strong>Notes:</strong></p>
+<p>In order for multiple database server instances to run on the same machine without interfering with one another, each instance allocates shared memory segments that have unique key value.</p>
+<p><code>为了让多个 database server 实例能够在同一台机器上运行且互不干扰，每个实例都会分配具有唯一键值的共享内存段。</code></p>
+<p>Informix Dynamic Server uses a base shared memory key value of 0x52564801. This 4-byte key can be broken down into two parts. The first two bytes reflect a unique value for each database server instance. The last two bytes are incremented for each shared memory segment allocated to an instance.</p>
+<p><code>IDS 采用的共享内存基键值为 0x52564801。这个由 4 字节组成的键值可以拆分为两部分。前两个字节反映了每个数据库服务器实例的唯一标识值，而后两个字节则针对分配给每个实例的每个共享内存段进行递增。</code></p>
+<p>To produce the shared memory key for a database server, <strong>oninit</strong> simply adds the value of the SERVERNUM configuration parameter to the value of the first two bytes (0x5256). For example, a system with a SERVERNUM value of 3 has a shared memory key of 0x52594801 (0x5256 + 0x3 &#x3D; 0x5259).</p>
+<p><code>为了生成 database server 的共享内存键值，oninit 进程只需将 SERVERNUM 配置参数的值加到前两个字节（0x5256）的值上。例如，在一个 SERVERNUM 值为 3 的系统中，其共享内存键值将是 0x52594801（0x5256 + 0x3 = 0x5259）。</code></p>
+<p>When <strong>oninit</strong> allocates additional segments, it increments the value of the last two bytes in the shared memory key until all required segments have been allocated. For example, 0x52594801, 0x52594802, 0x525984803, and so forth.</p>
+<p><code>当 oninit 分配额外的共享内存段时，它会递增共享内存键值中最后两个字节的值，直到所有需要的共享内存段都分配完毕。例如，键值会依次变为 0x52594801、0x52594802、0x52594803，以此类推。</code></p>
+<p><strong>Shared Memory Creation and Initialization</strong></p>
+<p><strong>oninit</strong> performs the following steps during Initialization mode:</p>
+<p><code>oninit 在初始化模式（Initialization mode）期间执行以下步骤：</code></p>
+<p>– Based on configuration values, it calculates the total size of memory required</p>
+<p><code>根据配置值，它计算出所需内存的总大小。</code></p>
+<p>– It determines the shared memory key based on SERVERNUM</p>
+<p><code>它根据 SERVERNUM 确定共享内存键值。</code></p>
+<p>– It creates necessary shared memory segments using the <strong>shmget</strong> function</p>
+<p><code>它使用 shmget 函数创建必要的共享内存段。</code></p>
+<p>– It attaches to new segments using the <strong>shmat</strong> function</p>
+<p><code>它使用 shmat 函数附加到新的共享内存段。</code></p>
+<p>– It initializes all shared memory structures; if the <strong>-i</strong> option has been used, it also initializes the root chunk</p>
+<p><code>它初始化所有共享内存结构；如果使用了 -i 选项，它还会初始化 root chunk。</code></p>
+<p>– Shared memory initialization fails unless <strong>shmat</strong> has mapped all segments oninit address space in one contiguous block</p>
+<p><code>除非 shmat 将所有共享内存段一次性连续映射到 oninit 进程的地址空间中，否则共享内存初始化将会失败。</code></p>
+<p><strong>Notes:</strong></p>
+<p>When Informix Dynamic Server shared memory is initialized, more is involved than simply creating the segments. Once the memory has been allocated, the database server attaches to the segments and writes to them, giving the memory a structure. Most of the time required for server initialization is taken by this structure initialization process.</p>
+<p><code>在初始化 IDS 的共享内存时，不仅仅是创建共享内存段那么简单。一旦内存分配完成，数据库服务器就会附加到这些段上并向其中写入数据，从而为内存赋予特定的结构。服务器初始化过程中所需的大部分时间都花在了这个结构初始化的步骤上。</code></p>
+<blockquote>
+<p>involve 涉及 英[ɪnˈvɒlv] 美[ɪnˈvɑːlv]</p>
+</blockquote>
+<p><strong>Allocating Shared Memory</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506221420687.png" alt="image-20250622142059618"></p>
+<p><strong>Notes:</strong></p>
+<p>When allocating shared memory for each portion, the <strong>oninit</strong> process first attempts to create one segment that holds all the configured structures. If this attempt fails, <strong>oninit</strong>divides the requested size by two and retries until the allocation either succeeds, or the requested size is less than four kilobytes, in which case, <strong>oninit</strong> exits with an error.</p>
+<p><code>在为各个部分分配共享内存时，oninit 进程首先会尝试创建一个能够容纳所有已配置结构的单个共享内存段。如果这一尝试失败，oninit 会将请求的内存大小减半，然后再次尝试分配，直到分配成功，或者请求的内存大小小于四千字节（4KB），在这种情况下，oninit 会以错误状态退出。</code></p>
+<p>Once the first request succeeds, more segments might be required depending on how many times the requested size had to be reduced. The requested size is not reduced again, however, until what remains to be allocated is less than this size. In other words, each segment must be the same size as the first except for the last allocated segment.</p>
+<p><code>一旦首次分配请求成功，后续可能还需要分配更多的共享内存段，这取决于请求的内存大小需要被减半多少次才能成功分配。然而，在剩余待分配的内存量小于首次成功分配的内存大小之前，不会再对请求的内存大小进行减半操作。换句话说，除了最后一个分配的段之外，每个后续分配的段的大小都必须与首次成功分配的段大小相同。</code></p>
+<p>If any of those subsequent allocations fail, <strong>oninit</strong> exits with an error.If all goes well, <strong>oninit</strong> moves onto the next step in Initialization mode, which involves attaching to and writing to the newly-created segments.</p>
+<p><code>如果这些后续的共享内存分配操作中有任何一个失败，oninit 进程将以错误状态退出。如果所有分配操作都顺利进行，oninit 将进入初始化模式的下一步，这包括附加到新创建的共享内存段并向其中写入数据。</code></p>
+<p><strong>Attaching to Shared Memory</strong></p>
+<ol>
+<li><p>Calculate SHMKEY based on SERVERNUM.</p>
+<p><code>根据 SERVERNUM 计算 SHMKEY。</code></p>
+</li>
+<li><p>Get the ID for a segment with this SHMKEY using <strong>shmget</strong></p>
+<p><code>使用 shmget 获取具有此 SHMKEY 的共享内存段的标识符（ID）。</code></p>
+</li>
+<li><p>Attach the first segment at SHMBASE using <strong>shmat</strong></p>
+<p><code>使用 shmat 将位于 SHMBASE 的首个共享内存段附加到进程的地址空间。</code></p>
+</li>
+<li><p>If <strong>shmat</strong> does not return SHMBASE, print error and exit</p>
+<p><code>如果 shmat 没有返回 SHMBASE，则打印错误信息并退出程序。</code></p>
+</li>
+<li><p>Attach to additional segments.</p>
+<p><code>附加（连接）到额外的共享内存段。</code></p>
+</li>
+</ol>
+<p>​		– The size of each segment is stored in the first segment</p>
+<p>​		<code>每个共享内存段的大小存储在首个共享内存段中。</code></p>
+<p>​		– Based on these sizes, calculate all desired base addresses</p>
+<p>​		<code>基于这些大小，计算所有期望的基地址。</code></p>
+<p>​		– By simply incrementing SHMKEY for each segment, obtain each ID from <strong>shmget</strong>, and pass the ID to <strong>shmat</strong></p>
+<p>​		<code>通过对每个共享内存段简单地递增 SHMKEY，从 shmget 获取每个段的标识符（ID），然后将该 ID 传递给 shmat。</code></p>
+<p><strong>Notes:</strong></p>
+<p>When a request is made to attach to shared memory, Informix Dynamic Server performs the following steps:</p>
+<ol>
+<li><p>The process calculates shared memory key based on SERVERNUM in configuration file.</p>
+<p><code>该进程根据配置文件中的 SERVERNUM 计算 shared memory key。</code></p>
+</li>
+<li><p>Based on the shared memory key, the process uses <strong>shmget</strong> to find the shared memory ID for the first segment.</p>
+<p><code>基于 shared memory key，该进程使用 shmget 来查找首个共享内存段的标识符（ID）。</code></p>
+</li>
+<li><p>Using <strong>shmat</strong>, the process tries to attach the first shared memory segment at SHMBASE.</p>
+<p><code>该进程使用 shmat 尝试将首个共享内存段附加到 SHMBASE 地址处。</code></p>
+</li>
+<li><p>If the segment has been attached at a different address from SHMBASE, the process prints an error and exits.</p>
+<p><code>如果该共享内存段已被附加到一个与 SHMBASE 不同的地址上，该进程会打印错误信息并退出。</code></p>
+</li>
+<li><p>Based on the size of the first attached segment that is stored in the segment itself, the process calculates the next shared memory base address, and continues attaching segments until it is finished.</p>
+<p><code>基于首个已附加共享内存段中存储的该段大小信息，该进程会计算下一个共享内存段的基地址，并继续附加共享内存段，直到完成所有操作。</code></p>
+</li>
+</ol>
+<p><strong>Multiple Segments</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506251909621.png" alt="image-20250625190940501"></p>
+<p><strong>Notes:</strong></p>
+<p>When you first initialize a database server, it allocates segments for the resident portion, the virtual portion, and optionally, the message portion. Even though a single portion of shared memory can consist of multiple segments, it is logically viewed (addressed) by the process as if it was one contiguous block of memory. That is why all segments belonging to a shared memory portion must be contiguous when attached to the process. Segments from one <em>portion</em> of shared memory need not be contiguous to segments from other portions.</p>
+<p><code>在首次初始化 database server 时，它会为驻留部分（resident portion）、虚拟部分（virtual portion）以及可选的消息部分（message portion）分配共享内存段。尽管共享内存的单个部分可能由多个段组成，但在逻辑上，进程会将其视为一个连续的内存块来进行访问（寻址）。这就是为什么属于同一共享内存部分的所有段在附加到进程时必须是连续的。然而，来自共享内存一个部分的段并不需要与来自其他部分的段保持连续。</code></p>
+<p>The resident portion segments are the first segments attached to the <strong>oninit</strong> process. Next are the virtual portion segments, and finally the message segments.</p>
+<p><code>驻留部分（resident portion）的段是首先附加到 oninit 进程的。接下来是虚拟部分（virtual portion）的段，最后是消息部分（message）的段。</code></p>
+<p><strong>New virtual segments</strong></p>
+<p>One exception to this rule is new virtual segments that are added to shared memory dynamically after the database server is initialized. They obviously can be attached in different locations within process memory. In the example above, virtual segment #3 was allocated dynamically.</p>
+<p><code>这一规则的一个例外情况是，在 database server 初始化之后，动态添加到共享内存中的新 virtual segments。显然，这些新 segment 可以在进程内存的不同位置进行附加。在上面的例子中，virtual segment #3 就是动态分配的。</code></p>
+<p><strong>Client processes</strong></p>
+<p>Clients using a shared memory connection attach only to the message portion of shared memory. Instead of attaching at SHMBASE, they attach at a value that is platform-specific. You can modify the location where the client attaches by setting the INFORMIXSHMBASE environment variable.</p>
+<p><code>使用共享内存连接的客户端仅附加到共享内存的消息部分。它们并不 attach 到 SHMBASE 地址，而是 attach 到一个与平台相关的特定值上。你可以通过设置 INFORMIXSHMBASE 环境变量来修改客户端 attach 的位置。</code></p>
+<p><strong>Shared Memory Usage: onstat -g seg</strong></p>
+<p>To monitor shared memory segments:</p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506251918133.png" alt="image-20250625191843067"></p>
+<p><strong>Notes:</strong></p>
+<p>The <strong>onstat -g seg</strong> command shows how shared memory is used within the Informix Dynamic Server.</p>
+<p><code>onstat -g seg 命令用于显示 IDS 中共享内存的使用情况。</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506251922364.png" alt="image-20250625192241293"></p>
+<p>addr: 该段内存附加到 Dynamic Server 可执行文件起始位置的地址</p>
+<p>ovhd: 系统开销所需的字节数</p>
+<p>The values in the <strong>id</strong> and <strong>key</strong> columns are similar to those columns returned by the <strong>ipcs -m</strong> command. The difference is that <strong>ipcs</strong> returns key values in hexadecimal notation.</p>
+<p><code>id 列和 key 列中的值与通过 ipcs -m 命令返回的相应列中的值类似。不同之处在于，ipcs 命令返回的键值（key values）是以十六进制表示法显示的。</code></p>
+<p><strong>Shared Memory Addresses</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506251926925.png" alt="image-20250625192646856"></p>
+<p><strong>Notes:</strong></p>
+<p>Each shared memory element is located at a fixed offset into shared memory. In addition to displaying the information held in the shared memory structures themselves, <strong>onstat -k</strong> displays the address of each structure, which is essentially SHMBASE plus the offset.</p>
+<p><code>每个共享内存元素都位于共享内存中的一个固定偏移量位置。除了显示共享内存结构本身所包含的信息外，onstat -k 命令还会显示每个结构的地址，这个地址本质上就是 SHMBASE 加上该结构的偏移量。</code></p>
+<p>For example, the shared memory address of the first active lock structure in the example above is 0xa031dd4. A process attached to this shared memory would find the structure at that address within its memory space. Since the memory is attached at SHMBASE, which happens to be 0xa00000 in this case, we can tell that the user structure is located at an offset of 0x31dd4 bytes into shared memory.</p>
+<p><code>例如，在上述示例中，第一个 active lock 结构的共享内存地址是 0xa031dd4。一个附加到该共享内存的进程会在其内存空间中的该地址处找到该结构。由于内存是附加在 SHMBASE 处的，而在这个例子中 SHMBASE 恰好是 0xa00000，因此我们可以推断出，该用户结构位于共享内存中偏移量为 0x31dd4 字节的位置。</code></p>
+<p>The address location can also be used to determine the portion of shared memory in which the structure resides. Compare the address of the structure with the addresses of the shared memory portions shown in the <strong>onstat -g ses</strong> output.</p>
+<p><code>该地址位置还可用于确定该结构位于共享内存的哪一部分。可以将该结构的地址与 onstat -g ses 命令输出中显示的共享内存各部分的地址进行比较。</code></p>
+<p>The offset value of a particular structure is important to someone analyzing a shared memory dump file, but it is irrelevant to an attached process. Informix Dynamic Server processes access shared memory structures only by using the full shared memory address of the structure.</p>
+<p><code>对于分析共享内存转储文件的人来说，特定结构的偏移量值非常重要，但对于已附加的进程而言，该偏移量值并无实际意义。IDS 进程仅通过使用结构的完整共享内存地址来访问共享内存结构。</code></p>
+<p><strong>The Resident Portion</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506251934017.png" alt="image-20250625193421945"></p>
+<p><strong>Notes:</strong></p>
+<p>The resident portion of shared memory consists mainly of <em>structure arrays</em>. For convenience, we sometimes refer to these arrays as <em>tables</em>.</p>
+<p><code>共享内存的驻留部分主要由 structure arrays 构成。为方便起见，我们有时将这些数组称为 tables。</code></p>
+<p><strong>Note</strong></p>
+<p>These shared memory <em>tables</em> should not to be confused with database tables.</p>
+<p><code>这些共享内存中的表（tables）不应与数据库表（database tables）相混淆。</code></p>
+<p><strong>Tracking Shared Memory Segments</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506251936937.png" alt="image-20250625193655853"></p>
+<p><strong>Notes:</strong></p>
+<p>The first segment of resident shared memory contains two structures at fixed addresses that allow access to all other portions of shared memory.</p>
+<p><code>驻留共享内存的第一个段包含两个位于固定地址的 structure，这两个 structure 允许访问共享内存的所有其他部分。</code></p>
+<p>The first of these structures resides at SHMBASE. This structure describes the first shared memory segment, which means it points to itself.</p>
+<p><code>这些 structure 中的第一个位于 SHMBASE（共享内存基地址）。该 structure 描述了第一个共享内存段，这意味着它指向自身。</code></p>
+<p>The second structure appears immediately following the first. This structure is the shared memory master control block. Some of the more significant entries in this structure are:</p>
+<p><code>第二个 structure 紧接着第一个结构之后出现。这个 structure 是共享内存主控制块（shared memory master control block）。该结构中一些较为重要的条目包括：</code></p>
+<p> <strong>•</strong> The size of the first and last shared memory segments</p>
+<p><code>第一个和最后一个共享内存段的大小</code></p>
+<p> <strong>•</strong> The total size of each shared memory portion</p>
+<p><code>每个共享内存部分的总大小</code></p>
+<p> <strong>•</strong> A pointer to a linked list that describes each segment</p>
+<p><code>指向描述每个段的链表的指针</code></p>
+<p> <strong>•</strong> A pointer to the linked list of shared memory pools</p>
+<p><code>指向共享内存池链表的指针</code></p>
+<p> <strong>•</strong> A pointer to the shared memory header table</p>
+<p><code>指向共享内存头表的指针</code></p>
+<p><strong>The Header Table</strong></p>
+<p>The header table is the starting point for accessing IDS resources. It contains:</p>
+<p><code>header table 是访问 IDS 资源的起点。它包含：</code></p>
+<p>– Pointers to resources (chunks, dbspaces, rstcb, transactions, dynamic lock tables, etc.)</p>
+<p><code>指向资源（如数据块、数据库空间、恢复控制块、事务、动态锁表等）的指针</code></p>
+<p>– Pointers to a linked list of sessions and environment variables</p>
+<p><code>指向会话和环境变量链表的指针</code></p>
+<p>– Parameters and other information, such as boot time, current time, LRU parameters, read-ahead values, archive flags, etc.</p>
+<p><code>参数以及其他信息，例如启动时间、当前时间、LRU 参数、预读值、归档标志等。</code></p>
+<p><strong>Notes:</strong></p>
+<p>The header table is the main source for accessing database server resources. Almost all access starts from here. Some of the information that can be accessed from the header table is shown above.</p>
+<p><code>头表是访问数据库服务器资源的主要来源。几乎所有的访问都从这里开始。上面展示了一些可以从头表中访问到的信息。</code></p>
+<p><strong>Physical Layout of the Virtual Portion</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506251946064.png" alt="image-20250625194611011"></p>
+<p><strong>Notes:</strong></p>
+<p>The virtual portion is divided into a series of 4K memory <em>blocks</em>. When a thread needs memory for its individual tasks, it takes one or more <em>contiguous</em> blocks.</p>
+<p><code>虚拟部分被划分为一系列 4K 大小的 memory blocks。当一个线程需要为其独立任务分配内存时，它会获取一个或多个连续的 memory blocks。</code></p>
+<p>A bitmap tracks the usage of each 4K block.</p>
+<p><code>位图用于跟踪每个4K内存块的使用情况。</code></p>
+<p><strong>Shared Memory Pools</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506251954485.png" alt="image-20250625195428400"></p>
+<p><strong>Notes:</strong></p>
+<p>A shared memory <em>pool</em> is a collection of memory blocks or <em>fragments</em>. A memory fragment can be any size, but the memory for that fragment must be contiguous. </p>
+<p><code>共享内存池是一组内存块(blocks)或片段的集合。内存片段可以是任意大小，但该片段的内存必须是连续的。</code></p>
+<p>Each memory fragment consists of:</p>
+<p><code>每个内存片段由以下部分组成：</code></p>
+<ul>
+<li><p>Block header</p>
+<p>The header tracks if the memory is used in the fragment, how much memory it contains, the type of data stored in it, and pointers to the next and previous fragment in the pool. Free blocks also contain a pointer to the next and previous free block.</p>
+<p><code>该头部（或称为头信息）会跟踪内存片段中的内存是否被使用、该片段包含多少内存、其中存储的数据类型，以及指向内存池中下一个和上一个片段的指针。空闲块还包含指向下一个和上一个空闲块的指针。</code></p>
+</li>
+<li><p>Data</p>
+<p>The data consists of any information appropriate to the pool. For example, a sort pool holds temporary data for a sort operation.</p>
+<p><code>这些数据包含与该内存池相关的任何信息。例如，一个排序内存池会存储用于排序操作的临时数据。</code></p>
+</li>
+</ul>
+<p>For new pools, the first fragment (or <em>overhead</em> fragment) contains the pool header. The pool header has a pointer to the first and last memory blocks in the pool. Also, the pool header contains a pointer to the free list in the first free block in the pool.</p>
+<p><code>对于新建的内存池，首个内存片段（或称为开销片段）中包含内存池的头部信息。该内存池头部包含指向池中首个和最后一个内存块的指针。此外，内存池头部还包含一个指向池中首个空闲块内空闲链表的指针。</code></p>
+<p><strong>Types of Shared Memory Pools</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506252001963.png" alt="image-20250625200157887"></p>
+<p><strong>Notes:</strong></p>
+<p>Shared memory pools can be classified into one of these three types:</p>
+<p><code>共享内存池可以归类为以下三种类型之一：</code></p>
+<p> <strong>•</strong> <em>System pools</em> are generally used by and are available to all threads in the database server. Usually these pools are initialized when the database server is started, and remain until the server is brought down.</p>
+<p><code>系统内存池通常被 database server 中的所有线程使用，并且对这些线程都可用。通常，这些内存池在 database server 启动时进行初始化，并一直存在，直到服务器关闭。</code></p>
+<p> <strong>•</strong> The <em>global pool</em> is used as a general area for threads that do not have a pool allocated for them. For example, network threads that need to allocate memory for internal uses use the global pool.</p>
+<p><code>全局内存池被用作那些未分配专用内存池的线程的通用区域。例如，需要为内部用途分配内存的网络线程就会使用全局内存池。</code></p>
+<p> <strong>•</strong> Each session has its own <em>session pool</em> that is used for any session-related information. The pool is created when the session is created, and the name of the pool is the same as the session number. The memory is returned to the virtual portion when the session terminates.</p>
+<p><code>每个会话（session）都有其专属的会话内存池，用于存储与该会话相关的任何信息。该内存池在会话创建时被创建，且内存池的名称与会话编号相同。当会话结束时，内存会被归还给虚拟内存部分。</code></p>
+<p><strong>Common shared memory pools</strong></p>
+<p>The following list shows the most commonly used pools and their contents:</p>
+<p><code>以下列表展示了最常用的内存池及其内容：</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506252005732.png" alt="image-20250625200547618"></p>
+<p><strong>Pool Usage: onstat -g mem</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506261905744.png" alt="image-20250626190521615"></p>
+<p><strong>Notes:</strong></p>
+<p>The <strong>onstat -g mem</strong> command lists all allocated pools.</p>
+<p><code>onstat -g mem 命令会列出所有已分配的内存池。</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506261906902.png" alt="image-20250626190639844"></p>
+<p>To see information about the fragments allocated to a pool, you can execute the above command followed by the name of a pool. For example:</p>
+<p><code>要查看分配给某个内存池的片段的相关信息，可以在执行上述命令后加上该内存池的名称。例如：</code></p>
+<p>​		onstat -g mem global</p>
+<p><strong>Shared Memory Caches</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506261908933.png" alt="image-20250626190805870"></p>
+<p><strong>Notes:</strong></p>
+<p>To help in improving database server performance, Informix Dynamic Server allows users to share certain types of objects by providing special pools, or <em>caches</em>, in shared memory.</p>
+<p><code>为助力提升 database server 性能，IDS 允许用户通过在共享内存中提供特殊的池（或称为缓存）来共享某些类型的对象。</code></p>
+<p><strong>Data Dictionary Cache</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506261909297.png" alt="image-20250626190957222"></p>
+<p><strong>Notes:</strong></p>
+<p>The <em>data dictionary cache</em> is used to store system catalog table information. On an OLTP system, it is common for multiple users to access tables within the same database. Because all queries on tables require a request to a system catalog table (to locate the partition page of a table, for example, the <strong>systables</strong> table must be queried to find the table’s partition number), I&#x2F;O can be reduced by allowing system catalog information to reside in shared memory. </p>
+<p><code>data dictionary cache 用于存储 system catalog table 的信息。在 OLTP 系统中，多个用户通常会访问同一数据库中的表。由于对表的所有查询都需要访问 system catalog table（例如，为了定位表的 partition page，必须查询 systables 表以找到该表的 partition number），因此通过允许 system catalog 信息驻留在共享内存中，可以减少 I/O 操作。</code></p>
+<p>Unlike the shared memory buffer, the data dictionary cache does not store entire pages from the data dictionary. System catalog rows are stored as <em>entries</em> in one of several <em>lists</em> held within the data dictionary cache. The data dictionary cache has a default of 31 lists with each list having up to 10 entries. You can configure the number of lists by setting the DD_HASHSIZE configuration parameter to any <em>prime</em> number. The maximum number of items in each list is configured by setting the DD_HASHMAX parameter.</p>
+<p><code>与共享内存 buffer 不同，data dictionary cache 并不会存储 data dictionary 中的完整页面。System catalog rows 是以条目的形式存储在 data dictionary cache 所持有的若干列表之一中的。data dictionary cache 默认有31个列表，每个列表最多可包含10个条目。你可以通过将 DD_HASHSIZE 配置参数设置为任意质数来配置列表的数量。每个列表中的最大条目数则通过设置 DD_HASHMAX 参数来进行配置。</code></p>
+<p>When system catalog rows are modified, the pages that contain these rows are handled through the shared memory buffer like any other pages.</p>
+<p><code>当 system catalog rows 被修改时，包含这些行的页面会像其他任何页面一样，通过共享内存 buffer 进行处理。</code></p>
+<p>The data dictionary cache, as well as other object caches, are not pre-populated when the server is initialized. Entries are made into the data dictionary cache as requests are received. When the cache is filled, entries are replaced based on a least-recently-used basis.</p>
+<p><code>data dictionary cache 以及其他对象缓存，在 server 初始化时并不会预先填充。当接收到请求时，才会将相应的条目存入 data dictionary cache 中。当缓存被填满时，会根据最近最少使用（LRU，Least Recently Used）的原则来替换条目。</code></p>
+<p><strong>Stored Procedure Cache</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506261918133.png" alt="image-20250626191825059"></p>
+<p><strong>Notes:</strong></p>
+<p>The <em>stored procedure cache</em> is responsible for maintaining information about user-defined routines from the <strong>sysprocedures</strong> and <strong>sysprocbody</strong> catalogs. This allows users who are sharing routines to access them directly from shared memory without having to read the catalog pages from disk. </p>
+<p><code>procedure cache 负责维护来自 sysprocedures 和 sysprocbody 系统目录表(catalogs)的用户自定义例程（存储过程或函数）的相关信息。这使得共享这些例程的用户能够直接从共享内存中访问它们，而无需从磁盘读取目录页。</code></p>
+<p>When routines are created or deleted, the pages that contain the routine definitions are handled through the shared memory buffer pool. </p>
+<p><code>当创建或删除例程（存储过程或函数）时，包含这些例程定义的页面会通过共享内存 buffer pool 进行处理。</code></p>
+<p>Like the data dictionary cache, the stored procedure cache maintains lists of entries; each entry contains the definition for a different user-defined routine. By default, the stored procedure cache can have up to 31 lists that contain a maximum of 127 entries. You can override these defaults by setting, respectively, the PC_HASHSIZE and PC_POOLSIZE configuration parameters. The PC_HASHSIZE must be a prime number.</p>
+<p><code>与 data dictionary cache 类似，procedure cache 也会维护条目列表；每个条目都包含一个不同用户自定义例程（存储过程或函数）的定义。默认情况下，存储过程缓存最多可以有31个列表，每个列表最多包含127个条目。你可以分别通过设置 PC_HASHSIZE 和 PC_POOLSIZE 配置参数来覆盖这些默认值。其中，PC_HASHSIZE 必须是一个质数。</code></p>
+<p><strong>Global Statement Cache</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506261922980.png" alt="image-20250626192249908"></p>
+<p><strong>Notes:</strong></p>
+<p>The <em>global (SQL) statement cache</em> is a place where frequently executed SQL statements could be stored and shared. </p>
+<p><code>global (SQL) statement cache 是一个用于存储和共享频繁执行的SQL语句的地方。</code></p>
+<p>Every time an SQL statement is received by the database server, it must be checked for syntax, encoded, and optimized. When enabled, the statement cache receives these preprocessed statements and saves them in a text and encoded form. Repeated statements can then be executed directly from the global statement cache without having to be preprocessed.</p>
+<p><code>每当 database server 接收到一条 SQL 语句时，都必须对其进行语法检查、编码和优化。当启用语句缓存功能后，语句缓存会接收这些经过预处理的语句，并以文本和编码的形式将它们保存起来。这样，对于重复执行的语句，就可以直接从全局语句缓存中执行，而无需再次进行预处理。</code></p>
+<p>The global statement cache is enabled by setting the STMT_CACHE configuration parameter to either 1 or 2. A value of 1 enables the statement cache, but statement caching is disabled by default for sessions. A value of 2 enables the statement cache and sets the session default to enabled. Statement caching is disabled if STMT_CACHE is set to 0. The total size of the statement cache is configured by setting the STMT_CACHE_SIZE configuration parameter. The default size is 512K.</p>
+<p><code>通过将 STMT_CACHE 配置参数设置为 1 或 2，可以启用全局语句缓存(global statement cache)。当该参数值为 1 时， statement cache 功能被启用，但默认情况下，会话级别的 statement caching 是禁用的。当该参数值为 2 时， statement cache 功能被启用，并且会话级别的默认设置也变为启用。如果将 STMT_CACHE 设置为 0，则 statement cache 功能将被禁用。 statement cache 的总大小可通过设置 STMT_CACHE_SIZE 配置参数来进行配置，其默认大小为 512K。</code></p>
+<p>You can override the STMT_CACHE configuration parameter either by setting the STMT_CACHE environment variable to either 0 (disabled) or 1 (enabled), or by executing the SQL command:</p>
+<p><code>你可以通过以下两种方式之一来覆盖 STMT_CACHE 配置参数：将 STMT_CACHE 环境变量设置为 0（禁用）或 1（启用）；或通过执行以下 SQL 命令：</code></p>
+<p>​		SET STATEMENT CACHE {ON|OFF};</p>
+<p><strong>Private Memory Cache on CPU VPs</strong></p>
+<p> Blocks of cache memory from 1 to 32 blocks in length</p>
+<p><code>长度为 1 到 32 个块的缓存内存块</code></p>
+<p> 4096 block size</p>
+<p> Associated with each CPU virtual processor allocated</p>
+<p><code>与每个已分配的 CPU 虚拟处理器相关联</code></p>
+<p> Speeds up access to memory and performance of the CPU VPs</p>
+<p><code>加快对内存的访问速度并提升 CPU 虚拟处理器（VPs）的性能</code></p>
+<p><strong>Notes:</strong></p>
+<p>The purpose of the private memory cache is to provide CPU VPs with their own blocks of shared memory that they can use to process their own memory allocation requests. The private cache provides a staging area for memory allocation requests that can be handled much faster than when competing with other CPU VP requests.</p>
+<p><code>private memory cache 的目的是为每个 CPU 虚拟处理器（VPs）提供它们各自专用的共享内存块，这些内存块可用于处理它们自身的内存分配请求。私有缓存为内存分配请求提供了一个暂存区域，通过该区域处理内存分配请求的速度要比与其他 CPU 虚拟处理器的请求竞争时快得多。</code></p>
+<p><strong>Note</strong></p>
+<p>The private memory cache was introduced in version 11.10 of Informix Dynamic Server.</p>
+<p><code>private memory cache 是在 IDS 的 11.10 版本中引入的。</code></p>
+<p><strong>Private Memory Cache Implementation</strong></p>
+<p> Static settings</p>
+<p>– Configuration parameter: VP_MEMORY_CACHE_KB</p>
+<p>– Default value is 0: feature is turned off </p>
+<p>– 800 is the default minimum value (800 KB)</p>
+<p>– Maximum value should not exceed 40% of SHMTOTAL</p>
+<p> Dynamic tuning</p>
+<p>– onmode –wm VP_MEMORY_CACHE_KB&#x3D; value</p>
+<p>– onmode –wf VP_MEMORY_CACHE_KB&#x3D; value</p>
+<p>– Setting to 0 disables the feature and empties caches</p>
+<p><strong>Notes:</strong></p>
+<p>To implement support for private memory caching, set the VP_MEMORY_CACHE_KB parameter to the amount of memory to allocate for all private memory caches. 800 kilobytes is the default size and the minimum setting for this parameter.</p>
+<p><code>要实现对 private memory caching 的支持，需将 VP_MEMORY_CACHE_KB 参数设置为要为所有 private memory caches 分配的内存量。该参数的默认大小为 800 KB，同时也是其最小设置值。</code></p>
+<p>You can also set the VP_MEMORY_CACHE_KB parameter by using the <strong>onmode -wm</strong> or <strong>-wf</strong> command.</p>
+<p><code>你也可以通过使用 onmode -wm 或 -wf 命令来设置 VP_MEMORY_CACHE_KB 参数。</code></p>
+<p><strong>Note</strong></p>
+<p>The <strong>onmode -wm</strong> command changes the parameter for the current session only. Messages are written to the message log file and to the command line.</p>
+<p>The <strong>onmode -wf</strong> command changes the value used by the database server and saves the value in the configuration file. A message is written only to the message log file.</p>
+<p><strong>Monitoring the VP Memory Cache</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506261938086.png" alt="image-20250626193826002"></p>
+<p><strong>Notes:</strong></p>
+<p>To view private memory cache statistics, use the <strong>onstat -g vpcache</strong> command. </p>
+<p><code>要查看 private memory cache 的统计信息，请使用 onstat -g vpcache 命令。</code></p>
+<p>The CPU VP memory block cache statistics report provides the following information:</p>
+<p><code>CPU 虚拟处理器（VP）内存块(block)缓存统计信息报告提供以下信息：</code></p>
+<p> <strong>• size</strong> – memory block size, based on 4096-byte blocks</p>
+<p><code>内存块大小（基于 4096 字节的块）</code></p>
+<p> <strong>• cur blks</strong> – current number of blocks—this is a multiple of the <strong>size</strong> field</p>
+<p><code>当前 block 数量——这是 size 字段的倍数</code>（我的理解：size是1、2、3……个4096字节大小的块，即: n * 4096，cur blks: m * (n * 4096)）</p>
+<p> <strong>• alloc</strong> – number of times a requestor was given a block of this size</p>
+<p><code>请求者被分配到此大小内存块的次数</code></p>
+<p> <strong>• miss</strong> – number of times a block was requested but none were available</p>
+<p><code>请求内存块但无可用块时的次数</code></p>
+<p> <strong>• free</strong> – number of times a memory block was placed into the cache</p>
+<p><code>内存块被放入缓存的次数</code></p>
+<p> <strong>• drain</strong> – number of times an aged block was forced out to make room</p>
+<p><code>为腾出空间而强制移除老旧内存块的次数</code></p>
+<p> <strong>• release</strong> – number of times the size limit was reached and a block couldn’t be inserted The report repeats for each CPU VP allocated.</p>
+<p><code>达到大小限制且无法插入内存块的次数。该报告会针对每个已分配的 CPU 虚拟处理器（VP）重复列出此信息。</code></p>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <footer class="article-footer">
+       
+    </footer>
+  </div>
+
+   
+    
+</article>
+
+    
+    <article
   id="post-IX9111/9"
   class="article article-type-post"
   itemscope
@@ -3225,68 +3648,6 @@ Extents
 <p>Above is an example of messages written to the message log during fast recovery. The message log shows the page at which physical recovery began (in the form chunk_number*:<em>page_offset</em>) and how many before-image pages were examined and restored. It also shows the number of transactions that were committed or rolled back during logical recovery. Finally, the message log shows checkpoint information, including where the checkpoint record was written in the logical logs.</p>
 <p><code>以上是快速恢复期间写入消息日志的消息示例。消息日志显示了物理恢复开始的页面（格式为“chunk_number:page_offset”）以及检查和恢复了多少个前映像页面。它还显示了逻辑恢复期间提交或回滚的事务数量。最后，消息日志显示了检查点信息，包括检查点记录在逻辑日志中的写入位置。</code></p>
 <p><code>紫本202页基本是快速恢复这块的翻译，而且有例子</code></p>
- 
-      <!-- reward -->
-      
-    </div>
-    
-
-    <!-- copyright -->
-    
-    <footer class="article-footer">
-       
-    </footer>
-  </div>
-
-   
-    
-</article>
-
-    
-    <article
-  id="post-SQLsmith/SQLsmith"
-  class="article article-type-post"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
-    
-    <header class="article-header">
-       
-<h2 itemprop="name">
-  <a class="article-title" href="/2024/04/07/SQLsmith/SQLsmith/"
-    >SQLsmith</a> 
-</h2>
- 
-
-      
-    </header>
-     
-    <div class="article-meta">
-      <a href="/2024/04/07/SQLsmith/SQLsmith/" class="article-date">
-  <time datetime="2024-04-07T12:57:01.000Z" itemprop="datePublished">2024-04-07</time>
-</a> 
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/SQLsmith/">SQLsmith</a>
-  </div>
- 
-    </div>
-      
-    <div class="article-entry" itemprop="articleBody">
-       
-  <p>源码：<a target="_blank" rel="noopener" href="https://github.com/anse1/sqlsmith">https://github.com/anse1/sqlsmith</a> tag:v1.4</p>
-<p>在Centos7上用CLion看代码，装了一些东西（顺序不一定），直到项目右键”Reload CMake Project”不报错为止，然后代码点击才能跳转<br>yum install postgresql14<br>yum install gcc-c++<br>yum clean all<br>rm -rf &#x2F;var&#x2F;cache&#x2F;yum&#x2F;*<br>yum install <a target="_blank" rel="noopener" href="https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm">https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm</a><br>yum install llvm5.0-devel<br>yum install postgresql14-devel<br>yum install libpqxx libpqxx-devel</p>
-<p>目的是看懂执行逻辑，不深入c++语法，只查了一下make_shared的含义：</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">make_shared</span>&lt;query_spec&gt;((<span class="keyword">struct</span> prod *)<span class="number">0</span>, s); <span class="comment">// 它会导致query_spec构造函数的调用，括号里是传入的2个参数</span></span><br></pre></td></tr></table></figure>
-
-<p>.cc文件，当做.cpp理解即可</p>
-<p>入口：sqlsmith.cc，只看postgres相关逻辑</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// main()</span></span><br><span class="line"><span class="comment">// 导致schema_pqxx构造函数调用，见下面postgres.cc</span></span><br><span class="line">schema = <span class="built_in">make_shared</span>&lt;schema_pqxx&gt;(options[<span class="string">&quot;target&quot;</span>], options.<span class="built_in">count</span>(<span class="string">&quot;exclude-catalog&quot;</span>));</span><br><span class="line"></span><br><span class="line"><span class="comment">// 执行sqlsmith时，加--dry-run，会把随机生成的语句写到日志里，不会执行</span></span><br><span class="line"><span class="keyword">if</span> (options.<span class="built_in">count</span>(<span class="string">&quot;dry-run&quot;</span>)) &#123;</span><br><span class="line">    <span class="keyword">while</span> (<span class="number">1</span>) &#123;</span><br><span class="line">        shared_ptr&lt;prod&gt; gen = <span class="built_in">statement_factory</span>(&amp;scope);</span><br><span class="line">        gen-&gt;<span class="built_in">out</span>(cout);</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">auto</span> l : loggers)</span><br><span class="line">            l-&gt;<span class="built_in">generated</span>(*gen);</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;;&quot;</span> &lt;&lt; endl;</span><br><span class="line">        queries_generated++;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (options.<span class="built_in">count</span>(<span class="string">&quot;max-queries&quot;</span>)</span><br><span class="line">            &amp;&amp; (queries_generated &gt;= <span class="built_in">stol</span>(options[<span class="string">&quot;max-queries&quot;</span>])))</span><br><span class="line">            <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>postgres.cc</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">schema_pqxx::<span class="built_in">schema_pqxx</span>(std::string &amp;conninfo, <span class="type">bool</span> no_catalog) : <span class="built_in">c</span>(conninfo)</span><br><span class="line">&#123;</span><br><span class="line">  <span class="comment">// 使用 libpqxx (PostgreSQL C++ API) 读元数据，包括：</span></span><br><span class="line">    </span><br><span class="line">  <span class="comment">// types</span></span><br><span class="line">  <span class="comment">// name,oid,typdelim,typrelid,typelem,typarray,typtype</span></span><br><span class="line">    </span><br><span class="line">  <span class="comment">// tables </span></span><br><span class="line">  <span class="comment">// name，schema，is_insertable，is_base_table（后边，只有是true的表才有机会从中随机）</span></span><br><span class="line">    </span><br><span class="line">  <span class="comment">// columns and constraints</span></span><br><span class="line">  <span class="comment">// operators</span></span><br><span class="line">  <span class="comment">// routines</span></span><br><span class="line">  <span class="comment">// routine parameters</span></span><br><span class="line">  <span class="comment">// aggregates</span></span><br><span class="line">  <span class="comment">// aggregate parameters</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">ifdef</span> HAVE_LIBPQXX7</span></span><br><span class="line">  c.<span class="built_in">close</span>();</span><br><span class="line"><span class="meta">#<span class="keyword">else</span></span></span><br><span class="line">  c.<span class="built_in">disconnect</span>();</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">  <span class="built_in">generate_indexes</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
  
       <!-- reward -->
       
