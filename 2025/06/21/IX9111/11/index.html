@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+
+
+<html lang="en">
+  
+
+    <head>
+      <meta charset="utf-8" />
+        
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>IX9111 - Unit 11.Communications |  blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    </head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-IX9111/11"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  IX9111 - Unit 11.Communications
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/06/21/IX9111/11/" class="article-date">
+  <time datetime="2025-06-21T09:08:59.000Z" itemprop="datePublished">2025-06-21</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/IX9111/">IX9111</a>
+  </div>
+ 
+    </div>
+      
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p><strong>Types of Client&#x2F;Server Communications</strong></p>
+<p>Choices for client&#x2F;server connections:</p>
+<p>– Shared memory</p>
+<p>– Stream pipe </p>
+<p>– TCP&#x2F;IP using</p>
+<p>​		• Sockets</p>
+<p>​		• TLI</p>
+<p>– IPX&#x2F;SPX</p>
+<p>– DRDA</p>
+<p><strong>Notes:</strong></p>
+<p>Clients can connect to the database server by one of the methods shown above.If clients are on the same machine as the database server, they most likely connect through shared memory or stream pipes. Shared memory is usually faster, but can be a security risk, as the shared memory message segment has read and write permissions for all clients. </p>
+<p><code>客户端可通过上述其中一种方法连接到 database server。如果客户端与 database server 位于同一台机器上，那么它们最有可能通过共享内存或流管道进行连接。共享内存的速度通常更快，但可能存在安全风险，因为共享内存消息段对所有客户端均设有读写权限。</code></p>
+<p>Remote clients connect using TCP&#x2F;IP or IPX&#x2F;SPX.In this chapter, we will take an in depth look at the shared memory connection, since it is a custom implementation of Informix Dynamic Server. We will also look at TCP&#x2F;IP and streams, but these implementations use generic function calls.</p>
+<p><code>远程客户端使用 TCP/IP 或 IPX/SPX 协议进行连接。在本章中，我们将深入探讨共享内存连接方式，因为它是 IDS 的一种自定义实现方式。我们也会探讨 TCP/IP 和流（streams）连接方式，但这些实现方式使用的是通用函数调用。</code></p>
+<p><strong>Shared Memory Message Segment</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506281450953.png" alt="image-20250628145034847"></p>
+<p><strong>Notes:</strong></p>
+<p>Clients connect to the database server through the message portion of Informix Dynamic Server shared memory. The size of the message portion is dependent upon the number of users that are allowed to connect to shared memory, set in the NETTYPE parameter. The shared memory message segment has the following components:</p>
+<p><code>客户端通过 IDS 共享内存的消息部分与 server 建立连接。消息部分的大小取决于允许连接到共享内存的用户数量，这一数量由 NETTYPE 参数设定。共享内存消息段包含以下组件：</code></p>
+<p> <strong>•</strong> Shared memory data – There is one shared memory data structure for each poll thread configured for the IDS server. It contains the bitmap for the message buffers and a bitmap for the message status areas. It also has tables for message buffer addresses and message buffer system status areas.</p>
+<p><code>针对为 IDS 服务器配置的每个轮询线程（poll thread），都存在一个共享内存数据结构。该数据结构包含 message buffers 的位图（bitmap）以及 message status areas 的位图。此外，它还包含 message buffer 地址表和 message buffer 系统状态区域表。</code></p>
+<p> <strong>•</strong> Status area – The status area contains one structure for each client connection. This structure includes the client ID, the connection state, the semaphore the client sleeps on, and the buffers the client is reading and writing to. In addition, it keeps a list of each buffer owned by the client ID and its status.</p>
+<p><code>状态区域为每个客户端连接都包含一个结构体。这个结构体包含客户端ID、连接状态、client sleeps on 时所使用的信号量（semaphore），以及客户端正在读写缓冲区（buffers）的相关信息。此外，它还会维护一个列表，记录客户端ID所拥有的每个缓冲区及其状态。</code></p>
+<p> <strong>•</strong> Message buffers – This contains the actual message buffers. The number of message buffers allocated when the system is initialized is: 8 * <em>users</em> * 1.2. The value of <em>users</em> is the number of connections as specified in the NETTYPE configuration parameter times the number of poll threads.</p>
+<p><code>这部分包含实际的消息缓冲区。系统初始化时分配的消息缓冲区数量计算公式为：8 * users * 1.2。其中，users 的值等于 NETTYPE 配置参数中指定的连接数乘以轮询线程（poll threads）的数量。</code></p>
+<p><strong>How Message Buffers are Used</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506281459157.png" alt="image-20250628145953088"></p>
+<p><strong>Notes:</strong></p>
+<p>The status area for a client contains pointers to buffers it <em>owns</em> in the message buffer pool. Buffers allocated to a client ID can be classified as either client buffers or server buffers.</p>
+<p><code>客户端的 status area 包含指向该客户端在消息缓冲区池（message buffer pool）中“拥有”的缓冲区的指针。分配给某个客户端ID的缓冲区可以分为客户端缓冲区（client buffers）或服务器缓冲区（server buffers）。</code></p>
+<p> <strong>•</strong> Client buffers are buffers that the client writes to and the server reads from.</p>
+<p><code>客户端缓冲区（client buffers）是指客户端向其中写入数据，而服务器从中读取数据的缓冲区。</code></p>
+<p> <strong>•</strong> Server buffers are buffers that the server writes to and the client reads from.</p>
+<p><code>服务器缓冲区（server buffers）是指服务器向其中写入数据，而客户端从中读取数据的缓冲区。</code></p>
+<p>Initially, a client connection is allocated 4 client buffers and 4 server buffers. If the session needs more buffers, the server allocates up to 10 buffers for the client and 10 buffers for the server. If the session needs more than 10 buffers, it waits on a semaphore until one is available.</p>
+<p><code>最初，为每个客户端连接分配 4 个客户端缓冲区和 4 个服务器缓冲区。如果会话需要更多缓冲区，server 会为客户端分配最多 10 个缓冲区，为 server 分配最多 10 个缓冲区。如果会话需要的缓冲区数量超过 10 个，那么它会在信号量（semaphore）上等待，直到有可用的缓冲区为止。</code></p>
+<p>Periodically, the server assigns buffers with a status of NOTINUSE back to the free list for the buffer pool and removes it from the allocated list for client connection.</p>
+<p><code>server 会定期将状态为 NOTINUSE（未使用）的缓冲区重新分配回缓冲区池的空闲列表中，并从客户端连接的已分配列表中移除这些缓冲区。</code></p>
+<p><strong>Shared Memory: How Clients Connect</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506281503998.png" alt="image-20250628150322929"></p>
+<p><strong>Notes:</strong></p>
+<p>The following steps detail how the client connects to the database server.</p>
+<ol>
+<li><p>The client reads the file &#x2F;INFORMIXTMP&#x2F;.inf.servicename to get the number of <strong>poll</strong> threads running. If there is more than one <strong>poll</strong> thread running, it selects one. Each poll thread can take a limited number of connections (specified by NETTYPE). If the <strong>poll</strong> thread has reached the connection limit, the client must try another <strong>poll</strong> thread.</p>
+<p><code>客户端会读取文件 /INFORMIXTMP/.inf.servicename 来获取正在运行的 poll（轮询）线程数量。如果存在多个正在运行的 poll 线程，客户端会从中选择一个。每个 poll 线程能够处理的连接数量是有限的（由 NETTYPE 参数指定）。如果某个 poll 线程已达到其连接数量上限，客户端就必须尝试选择另一个 poll 线程。</code></p>
+</li>
+<li><p>The client attaches to the message portion of shared memory.</p>
+<p><code>客户端会附加到共享内存的消息部分。</code></p>
+</li>
+<li><p>The client looks for a free buffer to send a message and fills it.</p>
+<p><code>客户端会寻找一个空闲的缓冲区来发送消息，并将消息填入该缓冲区。</code></p>
+</li>
+<li><p>The <strong>netscb</strong> (network session control block) is initialized for the connection. </p>
+<p><code>netscb（网络会话控制块）会针对该连接进行初始化。</code></p>
+</li>
+<li><p>The client puts the location of the message buffer on the ready queue.</p>
+<p><code>客户端将消息缓冲区的位置放入就绪队列中。</code></p>
+</li>
+<li><p>The client awakens the <strong>poll</strong> thread using a semaphore operation (<strong>semop)</strong>).</p>
+<p><code>客户端使用信号量操作（semop）唤醒 poll 线程。</code></p>
+</li>
+<li><p>The client sleeps on a semaphore to wait for a response.At this point, the poll thread wakes the listen thread, which creates the <strong>sqlexec</strong> thread for the session. From this point on, the <strong>listen</strong> thread is no longer needed for communication.</p>
+<p><code>客户端在信号量上休眠以等待响应。此时，轮询（poll）线程会唤醒监听（listen）线程，该监听线程会为会话创建 sqlexec 线程。从这一刻起，通信过程中就不再需要监听（listen）线程了。</code></p>
+</li>
+</ol>
+<p><strong>Shared Memory: Client Communication</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506281511261.png" alt="image-20250628151111193"></p>
+<p><strong>Notes:</strong></p>
+<p>Once a client connects to the message portion of shared memory, it can now communicate with the server through the message queues.</p>
+<p><code>一旦客户端连接到共享内存的消息部分，它现在就可以通过消息队列与服务器进行通信。</code></p>
+<ol>
+<li><p>The client application places a message (SQL STATEMENT, for example) in a free message buffer in the message portion of shared memory. When it uses a buffer, it marks the buffer as used so that it is not overwritten by another client or by the poll thread.</p>
+<p><code>客户端应用程序将一条消息（例如，SQL 语句）放入共享内存消息部分的一个空闲消息缓冲区中。当它使用某个缓冲区时，会将该缓冲区标记为“已使用”，以防止其他客户端或轮询（poll）线程覆盖它。</code></p>
+</li>
+<li><p>The client puts its ID on the message ready queue.</p>
+<p><code>客户端将其标识符（ID）放入消息就绪队列中。</code></p>
+</li>
+<li><p>The client sleeps on a semaphore.</p>
+<p><code>客户端在信号量上休眠（或等待）。</code></p>
+</li>
+<li><p>The poll thread periodically wakes up and looks through the message ready queue, checking to see if a message has been sent.</p>
+<p><code>轮询（poll）线程会定期唤醒，并遍历消息就绪队列，检查是否有消息被发送。</code></p>
+<p><strong>Note</strong></p>
+<p>The poll thread can potentially have a lot of work to do, handling incoming messages; it checks the message ready queue quite often. Although it is generally more efficient for the poll thread to run on the CPU VP (in-line polling), a very busy poll thread could cause the <strong>sqlexec</strong> threads to wait longer for a free CPU VP.</p>
+<p><code>轮询（poll）线程可能面临大量工作，负责处理传入的消息；它会非常频繁地检查消息就绪队列。尽管通常让轮询线程在 CPU 虚拟处理器（VP）上运行（in-line polling，即内联轮询）效率更高，但一个非常繁忙的轮询线程可能会导致 sqlexec 线程需要等待更长时间才能获得一个空闲的 CPU 虚拟处理器（VP）。</code></p>
+</li>
+<li><p>If there is a message, it takes the message entry off the ready queue, and copies the message from the message buffer to the session pool. It releases the message buffer and, if the <strong>sqlexec</strong> thread is waiting on the <strong>sm_read</strong> condition, it puts the <strong>sqlexec</strong> thread on the ready queue to process the message.</p>
+<p><code>如果存在消息，它会从就绪队列中取出该消息条目，并将消息从消息缓冲区复制到会话池中。之后，它会释放该消息缓冲区，并且如果 sqlexec 线程正在等待 sm_read 条件，它会将 sqlexec 线程放入就绪队列中以处理该消息。</code></p>
+</li>
+</ol>
+<p><strong>Shared Memory: Server Communication</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506281520299.png" alt="image-20250628152035225"></p>
+<p><strong>Notes:</strong></p>
+<p>The <strong>sqlexec</strong> thread leaves the <strong>poll</strong> thread out of operations that write to the client application.</p>
+<p><code>sqlexec 线程在执行向客户端应用程序写入数据的操作时，不会让 poll 线程参与其中（即 poll 线程不参与这些写入操作）。</code></p>
+<ol>
+<li><p>The <strong>sqlexec</strong> thread places the message to be sent to the client (usually SQL results) in the message buffer. </p>
+<p><code>sqlexec 线程将待发送给客户端的消息（通常是 SQL 查询结果）放入消息缓冲区中。</code></p>
+</li>
+<li><p>The <strong>sqlexec</strong> thread wakes the client process.</p>
+<p><code>sqlexec 线程唤醒客户端进程。</code></p>
+</li>
+<li><p>The client reads the message buffer.</p>
+<p><code>客户端读取消息缓冲区。</code></p>
+</li>
+</ol>
+<p><strong>How Utilities Communicate</strong></p>
+<p>Utilities such as <strong>oncheck</strong> and <strong>ontape</strong> usually do not communicate to the server like other clients. Instead they rely on lower level functions.</p>
+<p><code>像 oncheck 和 ontape 这样的工具通常不会像其他客户端那样与服务器进行通信。相反，它们依赖于底层函数。</code></p>
+<p>– <strong>onbar</strong> uses stream buffers to move pages</p>
+<p><code>onbar 使用 stream buffers 来移动数据页（pages）。</code></p>
+<p>– <strong>onmode</strong> attaches directly to the resident segment and modifies structures itself</p>
+<p><code>onmode 工具直接连接到常驻内存段（resident segment），并自行修改其中的数据结构。</code></p>
+<p>– <strong>oncheck</strong> use lower-level calls to pass messages to its associated server thread</p>
+<p><code>oncheck 使用较低级别的调用（lower-level calls）来向其关联的服务器线程传递消息。</code></p>
+<p><strong>Notes:</strong></p>
+<p>Informix Dynamic Server utilities do not usually connect and send messages like other clients. Instead, they use a variety of techniques, bypassing the high-level communication protocol.</p>
+<p><code>IDS 工具通常不会像其他客户端那样进行连接并发送消息。相反，它们采用多种技术，绕过了高级通信协议。</code></p>
+<p><strong>Files Used for Shared Memory</strong></p>
+<p> &#x2F;INFORMIXTMP&#x2F;.inf.servicename</p>
+<p> $INFORMIXDIR&#x2F;etc&#x2F;.infos.dbservername</p>
+<p><strong>Notes:</strong></p>
+<p>The following files are used in shared memory communications.</p>
+<p><code>以下文件用于共享内存通信。</code></p>
+<p> <strong>• .inf.servicename</strong> – Informix Dynamic Server creates this file when it initiates a shared memory poll thread and removes the file when you take the database server offline. The name of this file is derived from the <strong>servicename</strong> field of the <strong>sqlhosts</strong> file. IDS keeps information about client&#x2F;server connections in this file. If this file is accidently deleted, you must restart the server. This file includes the following information:</p>
+<p><code>IDS 在启动共享内存轮询线程时会创建此文件，并在将数据库服务器置于离线状态时删除该文件。此文件的名称源自 sqlhosts 文件中的 servicename 字段。IDS 会在此文件中保存有关客户端/服务器连接的信息。如果此文件被意外删除，您必须重启服务器。此文件包含以下信息：</code></p>
+<p> <strong>-</strong> Shared memory segment ID</p>
+<p><code>共享内存段ID</code></p>
+<p> <strong>-</strong> Semaphore information for the two semaphores needed by the server.</p>
+<p><code>服务器所需的两个信号量的相关信息。</code></p>
+<p> <strong>-</strong> Number of poll threads</p>
+<p><code>轮询线程的数量</code></p>
+<p> <strong>-</strong> Offset and size of bitmap in shared memory segment</p>
+<p><code>共享内存段中位图（bitmap）的偏移量和大小。</code></p>
+<p> <strong>-</strong> Offset of status area array in message segment</p>
+<p><code>消息段中 status area array 的偏移量。</code></p>
+<p> <strong>• .infos.dbservername</strong> – IDS creates this file when you initialize shared memory and removes the file when you take the server offline. The name of this file is derived from the DBSERVERNAME configuration parameter. These files allow utilities such as <strong>oncheck</strong>, <strong>onstat</strong>, and <strong>ontape</strong> to attach to the database server.</p>
+<p><code>IDS 在初始化共享内存时会创建此文件，而在将服务器置于离线状态时会删除该文件。此文件的名称源自 DBSERVERNAME  配置参数。这些文件允许诸如 oncheck、onstat 和 ontape 之类的实用工具连接到 server。</code></p>
+<p><strong>Semaphores Used for Connections</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506302342834.png" alt="image-20250630234242729"></p>
+<p><strong>Notes:</strong></p>
+<p>Informix Dynamic Server uses semaphores for coordinating communication between the client and server when a shared memory connection is used. The semaphore is set to signal if a message is waiting in the message buffer for a client.</p>
+<p><code>IDS 在使用共享内存连接时，会利用信号量（semaphores）来协调客户端与服务器之间的通信。当消息缓冲区中有等待客户端接收的消息时，该信号量会被触发（或置位）。</code></p>
+<p>The number of semaphores used by a database server depends on the number of connections allocated in the NETTYPE configuration parameter. If NETTYPE is not set, the database server defaults to 50 user connections. The server allocates a semaphore set containing one semaphore for each connection.</p>
+<p><code>database server 所使用的信号量数量，取决于在 NETTYPE 配置参数中分配的连接数。若未设置 NETTYPE 参数，database server 将默认采用 50 个用户连接。server 会为每个连接分配一个包含单个信号量的信号量集合。</code></p>
+<p>Two additional semaphores are controlled in the <strong>&#x2F;INFORMIXTMP&#x2F;.inf.servicename</strong> file. </p>
+<p><code>/INFORMIXTMP/.inf.servicename 文件中还控制着另外两个信号量。</code></p>
+<p>Because client processes don’t know anything about mutexes, these semaphores are used by clients to lock the message buffers while connecting. The <strong>sm_discon</strong> thread also uses a semaphore to lock the message buffers when cleaning up after a client that has exited.</p>
+<p><code>由于客户端进程对互斥锁（mutexes）一无所知，因此在连接过程中，客户端会使用这些信号量来锁定消息缓冲区。sm_discon 线程在清理已退出的客户端遗留的资源时，也会使用信号量来锁定消息缓冲区。</code></p>
+<p><strong>How semaphores are allocated</strong></p>
+<p>Semaphores are allocated as a set by the operating system. IDS attempts to allocate the semaphores in groups of 100, however depending upon operating system kernel parameters, you might see fewer semaphores in each set.</p>
+<p><code>信号量由操作系统以集合形式进行分配。IDS 会尝试以每组100个的方式分配信号量，但根据操作系统内核参数的不同，每组中实际分配的信号量数量可能会减少。</code></p>
+<p><strong>Other semaphores used</strong></p>
+<p>Semaphores are used by a database server for other purposes as well. Informix Dynamic Server allocates one semaphore for each VP, and one semaphore in its own set for each VP that is added dynamically. The VP semaphores allow an idle VP to sleep, and allow another VP to wake it up when necessary.</p>
+<p><code>database server 还会将信号量用于其他用途。IDS 会为每个虚拟处理器（VP）分配一个信号量，并且会为每个动态添加的虚拟处理器（VP）在其独立的信号量集合中再分配一个信号量。这些针对虚拟处理器（VP）的信号量使得空闲的虚拟处理器能够进入休眠状态，并在必要时允许其他虚拟处理器将其唤醒。</code></p>
+<p>In the slide example, two semaphore sets were initially allocated. The first set includes one semaphore for each VP. Since NETTYPE was not set, the second set contains semaphores for 50 connections, plus two semaphores for the <strong>&#x2F;INFORMIXTMP</strong> file. The additional semaphore sets that contain only one semaphore each were likely allocated for dynamically-added VPs.</p>
+<p><code>在幻灯片示例中，最初分配了两个信号量集合。第一个集合为每个虚拟处理器（VP）包含一个信号量。由于未设置NETTYPE参数，第二个集合包含为50个连接分配的信号量，再加上为 /INFORMIXTMP 文件分配的两个信号量。那些仅包含一个信号量的额外信号量集合，很可能是为动态添加的虚拟处理器（VP）分配的。</code></p>
+<p><strong>Monitoring Shared Memory Connections</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506302355128.png" alt="image-20250630235542068"></p>
+<p><strong>Notes:</strong></p>
+<p>The <strong>onstat -g nsc</strong> command, without any arguments, summarizes each connection with one line. It lists the following:</p>
+<p><code>onstat -g nsc 命令（不带任何参数）会以每行一条记录的形式对各个连接进行汇总。它会列出以下信息：</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506302357186.png" alt="image-20250630235733128"></p>
+<p><strong>Monitoring Individual Connections</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506302358243.png" alt="image-20250630235811169"></p>
+<p><strong>Notes:</strong></p>
+<p>When you include a client ID, the <strong>onstat -g nsc</strong> command lists more detailed information about shared memory I&#x2F;O. In addition to the summary information (shown on the previous page), this command also shows the following:</p>
+<p><code>当指定客户端ID作为参数时，onstat -g nsc 命令会列出有关共享内存I/O的更详细信息。除了（上一页所示的）汇总信息外，该命令还会显示以下内容：</code></p>
+<table>
+<thead>
+<tr>
+<th>title</th>
+<th>desc</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>needbuf</strong></td>
+<td>A flag that is set if the server is waiting for a buffer<br><code>若server正在等待缓冲区，则该标志会被置位</code></td>
+</tr>
+<tr>
+<td><strong>segid</strong></td>
+<td>The segment ID of the message shared memory segment. See <strong>ipcs</strong> to see the segment ID for each allocated segment.<br><code>消息共享内存段的段ID。可使用 ipcs 命令查看每个已分配内存段的段ID。</code></td>
+</tr>
+<tr>
+<td><strong>semnum</strong></td>
+<td>The semaphore number the client waits on<br><code>客户端等待的信号量编号</code></td>
+</tr>
+<tr>
+<td><strong>semid</strong></td>
+<td>The semaphore ID of the semaphore the client waits on. See <strong>ipcs</strong> for a list of semaphores and their IDs.<br><code>客户端所等待的信号量对应的信号量标识符ID。可使用 ipcs 命令查看信号量列表及其ID。</code></td>
+</tr>
+<tr>
+<td><strong>be_curread</strong></td>
+<td>The buffer ID of the message buffer the server is currently reading<br><code>server当前正在读取的消息缓冲区的 buffer ID</code></td>
+</tr>
+<tr>
+<td><strong>be_curwrite</strong></td>
+<td>The buffer ID of the message buffer the server is currently writing to<br><code>server当前正在写入的消息缓冲区的 buffer ID</code></td>
+</tr>
+<tr>
+<td><strong>fe_curread</strong></td>
+<td>The buffer ID of the message buffer the client is currently reading<br><code>client当前正在读取的消息缓冲区的 buffer ID</code></td>
+</tr>
+<tr>
+<td><strong>fe_curwrite</strong></td>
+<td>The buffer ID of the message buffer the client is currently writing to<br><code>client当前正在写入的消息缓冲区的 buffer ID</code></td>
+</tr>
+<tr>
+<td><strong>next* columns</strong></td>
+<td>The buffer IDs that the client and server will process next<br><code>客户端和服务器接下来将处理的 buffer IDs</code></td>
+</tr>
+<tr>
+<td><strong>readyqueue</strong></td>
+<td>The message ready queue. A value of <strong>-1</strong> indicates no entry.<br><code>消息就绪队列。值为 -1 表示没有条目（即队列为空）。</code></td>
+</tr>
+</tbody></table>
+<p>The next set of information is a list of the buffers, their status (<strong>avail</strong>, <strong>inuse</strong>, or <strong>free</strong>), and their address.</p>
+<p><code>接下来的一组信息是缓冲区列表，包括它们的状态可用（avail）、使用中（inuse）或 空闲（free）及其地址。</code></p>
+<p><strong>onstat -g nss</strong></p>
+<p>If you know the session ID, you can get the same information as <strong>onstat -g nsc</strong> by running <strong>onstat -g nss</strong> with the session ID.</p>
+<p><code>如果你知道会话ID，那么通过将会话ID作为参数运行 onstat -g nss 命令，你可以获取到与 onstat -g nsc 命令相同的信息。</code></p>
+<p><strong>Stream Pipes</strong></p>
+<p> More secure connection than shared memory</p>
+<p><code>比共享内存更安全的连接方式</code></p>
+<p> Allows multiple connections from one client</p>
+<p><code>允许一个客户端建立多个连接</code></p>
+<p> Best for communication between two database servers on the same machine</p>
+<p><code>最适合同一台机器上两 database server 之间的通信</code></p>
+<p><strong>Notes:</strong></p>
+<p>There are two flavors of implementation for the named stream pipe net driver—SVR4 &amp; BSD. The SVR4 stream pipe driver is implemented with a named stream pipe with the <strong>connld</strong> module pushed on the server end. The <strong>connld</strong> module provides unique connections between server and client processes. The BSD stream pipe driver is implemented using UNIX domain socket.</p>
+<p><code>命名流管道网络驱动程序有两种实现形式——SVR4 和 BSD。SVR4 流管道驱动程序通过在 server 端加载 connld 模块来实现 named stream pipe。connld 模块为 server 和客户端进程之间提供唯一连接。BSD 流管道驱动程序则是使用 UNIX 域套接字（UNIX domain socket）来实现的。</code></p>
+<p>Streams use a file names specified in the <strong>&#x2F;INFORMIXTMP</strong> directory. For both implementations, the name of the stream pipe is a UNIX filename, which is constructed from the service name field of the sqlhosts file, and placed in <strong>&#x2F;INFORMIXTMP</strong>.</p>
+<p><code>流（Streams）使用在 /INFORMIXTMP 目录中指定的文件名。对于这两种实现方式，流管道的名称都是一个UNIX文件名，该文件名由 sqlhosts 文件中的服务名（service name）字段构造而成，并放置在 /INFORMIXTMP 目录中。</code></p>
+<p>Although shared memory is a faster protocol, there are two areas where shared memory cannot be used and streams is a useful alternative:</p>
+<p><code>尽管共享内存是一种速度更快的协议，但在以下两个领域中无法使用共享内存，而流（Streams）则是一种实用的替代方案：</code></p>
+<p> <strong>•</strong> Because a stream pipes connection does not read or write to shared memory message buffers, it is considered to be more secure than a shared memory connection.</p>
+<p><code>由于流管道连接不会读写共享内存消息缓冲区，因此它被认为比共享内存连接更加安全。</code></p>
+<p> <strong>•</strong> A client cannot have multiple connections to the database via shared memory. Our shared memory protocol was never designed to multiplex, and we’ve never got around to changing that. However a front end can have multiple connections to the server via either streams, TLI or sockets.</p>
+<p><code>客户端无法通过共享内存与数据库建立多个连接。我们的共享内存协议在设计之初就未考虑多路复用功能，而且我们至今也未着手对其进行修改。不过，前端应用程序可以通过流（Streams）、传输层接口（TLI）或套接字（Sockets）与服务器建立多个连接。</code></p>
+<p><strong>•</strong> Two servers on the same machine cannot communicate with each other by shared memory. Streams is a good choice for this type of communication, rather than performing local loopbacks via sockets or TLI.</p>
+<p><code>同一台机器上的两个 server 无法通过共享内存进行相互通信。对于此类通信需求，采用流（Streams）是更好的选择，而非通过套接字（Sockets）或传输层接口（TLI）进行本地回环通信。</code></p>
+<p><strong>Network User Statistics: onstat -g ntu</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202507011947948.png" alt="image-20250701194725824"></p>
+<p><strong>Notes:</strong></p>
+<p>The <strong>onstat -g ntu</strong> command displays network information about each user thread.</p>
+<p><code>onstat -g ntu 命令显示每个用户线程的网络信息。</code></p>
+<p><strong>#netscb</strong></p>
+<p>Total current number of network session control blocks &#x2F; number of all network session control blocks ever allocated</p>
+<p><code>当前已分配的网络会话控制块总数 / 曾分配过的所有网络会话控制块数量</code></p>
+<p><strong>connects</strong></p>
+<p>Total connects performed</p>
+<p><code>已执行的总连接数</code></p>
+<p><strong>read</strong></p>
+<p>Total reads performed</p>
+<p><code>已执行的总读取次数</code></p>
+<p><strong>write</strong></p>
+<p>Total writes performed</p>
+<p><code>已执行的总写入次数</code></p>
+<p><strong>q-free</strong></p>
+<p>Number of free buffers currently on the queue &#x2F; greatest number of free buffers simultaneously on the queue since server initialization</p>
+<p><code>当前队列中空闲缓冲区的数量 / 自服务器初始化以来队列中同时存在的空闲缓冲区的最大数量</code></p>
+<blockquote>
+<p>simultaneously 同时 英[ˌsɪməlˈteɪniəsli] 美[ˌsaɪməlˈteɪniəsli]</p>
+</blockquote>
+<p><strong>q-limits</strong></p>
+<p>Maximum number of free buffers that can be on the queue &#x2F; maximum number of buffers that can be on the queue</p>
+<p><code>队列中可存在的空闲缓冲区的最大数量 / 队列中可容纳的缓冲区的最大数量</code></p>
+<p><strong>q-exceed</strong></p>
+<p>Number of times free-buffer limit has been exceeded &#x2F; number of times buffer limit has been exceeded</p>
+<p><code>空闲缓冲区限制被突破的次数 / 缓冲区限制被突破的次数</code></p>
+<p><strong>alloc&#x2F;max</strong></p>
+<p>Number of buffers currently allocated &#x2F; greatest number of buffers allocated simultaneously since server initialization</p>
+<p><code>当前已分配的缓冲区数量 / 自服务器初始化以来同时分配的缓冲区最大数量</code></p>
+<p><strong>netscb</strong></p>
+<p>Address of the network session control block</p>
+<p><code>网络会话控制块的地址</code></p>
+<p><strong>type</strong> </p>
+<p>Identifier of the protocol this thread uses</p>
+<p><code>该线程所使用的协议的标识符</code></p>
+<p><strong>thread name</strong> </p>
+<p>Name of this thread</p>
+<p><code>线程名</code></p>
+<p><strong>sid</strong> </p>
+<p>Session ID associated with this thread</p>
+<p><code>与该线程关联的会话ID</code></p>
+<p><strong>fd</strong> </p>
+<p>File descriptor for the thread </p>
+<p><code>该线程的文件描述符</code></p>
+<p><strong>poll</strong> </p>
+<p>Mail box number of the poll thread that services this network connection</p>
+<p><code>服务于该网络连接的轮询线程的 Mail box number</code></p>
+<p>Mail box number?</p>
+<p><strong>reads</strong> </p>
+<p>Number of reads for this thread</p>
+<p><code>该线程的读取次数</code></p>
+<p><strong>writes</strong> </p>
+<p>Number of writes for this thread</p>
+<p><code>该线程的写入次数</code></p>
+<p><strong>q-nrm</strong> </p>
+<p>Number of buffers &#x2F; maximum number of buffers on the normal data queue</p>
+<p><code>普通数据队列上的缓冲区数量 / 普通数据队列上的缓冲区最大数量</code></p>
+<p><strong>q-pvt</strong> </p>
+<p>Number of private buffers&#x2F;maximum number of private buffers on the private data queue</p>
+<p><code>私有数据队列上的私有缓冲区数量 / 私有数据队列上的私有缓冲区最大数量</code></p>
+<p><strong>q-exp</strong> </p>
+<p>Number of expedite buffers &#x2F; maximum number of buffers ever on the expedited data queue</p>
+<p><code>加速数据队列上的加速缓冲区数量 / 加速数据队列上曾出现过的缓冲区最大数量</code></p>
+<p><strong>Network User Times: onstat -g ntt</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202507011959250.png" alt="image-20250701195901170"></p>
+<p><strong>Notes:</strong></p>
+<p>The <strong>onstat -g ntt</strong> command prints thread access times.</p>
+<p><code>onstat -g ntt 命令会打印线程访问时间。</code></p>
+<p><strong>netscb</strong> </p>
+<p>Address of the network session control block</p>
+<p><code>网络会话控制块的地址</code></p>
+<p><strong>thread name</strong> </p>
+<p>Name of the thread</p>
+<p><code>线程名</code></p>
+<p><strong>sid</strong> </p>
+<p>Session ID of the thread</p>
+<p><code>该线程的会话ID</code></p>
+<p>The next three entries show only time if the event occurred today and a time and date if the event occurred prior to today. </p>
+<p><code>接下来的三项条目仅显示当天发生事件的时间；若事件发生在当天之前，则同时显示时间和日期。</code></p>
+<p><strong>open</strong> </p>
+<p>Time of the last open event</p>
+<p><code>最后一次开启事件的时间</code></p>
+<p><strong>read</strong> </p>
+<p>Time of the last close event </p>
+<p><code>最后一次关闭事件的时间</code></p>
+<p><strong>write</strong> </p>
+<p>Time of the last write event</p>
+<p><code>最后一次写入事件的时间</code></p>
+<p><strong>address</strong> </p>
+<p>Address of the server, only valid on listener thread</p>
+<p><code>server 地址（仅在监听线程上有效）</code></p>
+<p><strong>Network Statistics by Service: onstat -g ntd</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202507012002983.png" alt="image-20250701200256892"></p>
+<p><strong>Notes:</strong></p>
+<p>The <strong>onstat -g ntd</strong> command prints network dispatch information.</p>
+<p><code>onstat -g ntd 命令会打印网络分发信息。</code></p>
+<p><strong>Client Type</strong> </p>
+<p>Type of client service</p>
+<p><code>客户端服务类型</code></p>
+<p><strong>Calls</strong> </p>
+<p><strong>yes</strong>: clients of this type are being allowed connections</p>
+<p><code>此类客户端被允许建立连接</code></p>
+<p><strong>no</strong>: connections of this type are not currently allowed</p>
+<p><code>目前不允许此类连接</code></p>
+<p><strong>Accepted</strong> </p>
+<p>Number of times this client type has had a thread spawned</p>
+<p><code>此类客户端类型已触发线程生成的次数</code></p>
+<p><strong>Rejected</strong> </p>
+<p>Number of times a connection to this client type has been rejected</p>
+<p><code>针对此类客户端类型的连接被拒绝的次数</code></p>
+<p><strong>Read</strong> </p>
+<p>Total number of messages sent from this client type</p>
+<p><code>此类客户端类型发送的消息总数</code></p>
+<p><strong>Write</strong> </p>
+<p>Total number of message sent to this client type</p>
+<p><code>发送给此类客户端类型的消息总数</code></p>
+<p>All statistics shown in this and other network reports are based on activity since the database server was last initialized.</p>
+<p><code>本报告及其他网络报告中显示的所有统计数据均基于自数据库服务器上次初始化以来的活动情况。</code></p>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://frh16.github.io/2025/06/21/IX9111/11/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/2025/06/21/IX9111/10/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            IX9111 - Unit 10.Shared Memory Architecture
+          
+        </div>
+      </a>
+    
+    
+      <a href="/2025/06/10/IX9111/9/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">IX9111 - Unit 9. Virtual Processors and Threads</div>
+      </a>
+    
+  </nav>
+
+  
+   
+    
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2023-2025
+        <i class="ri-heart-fill heart_icon"></i> fengrh
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    
+
+  </div>
+</body>
+
+</html>

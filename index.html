@@ -490,6 +490,418 @@
 
     
     <article
+  id="post-IX9111/11"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h2 itemprop="name">
+  <a class="article-title" href="/2025/06/21/IX9111/11/"
+    >IX9111 - Unit 11.Communications</a> 
+</h2>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/06/21/IX9111/11/" class="article-date">
+  <time datetime="2025-06-21T09:08:59.000Z" itemprop="datePublished">2025-06-21</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/IX9111/">IX9111</a>
+  </div>
+ 
+    </div>
+      
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p><strong>Types of Client&#x2F;Server Communications</strong></p>
+<p>Choices for client&#x2F;server connections:</p>
+<p>– Shared memory</p>
+<p>– Stream pipe </p>
+<p>– TCP&#x2F;IP using</p>
+<p>​		• Sockets</p>
+<p>​		• TLI</p>
+<p>– IPX&#x2F;SPX</p>
+<p>– DRDA</p>
+<p><strong>Notes:</strong></p>
+<p>Clients can connect to the database server by one of the methods shown above.If clients are on the same machine as the database server, they most likely connect through shared memory or stream pipes. Shared memory is usually faster, but can be a security risk, as the shared memory message segment has read and write permissions for all clients. </p>
+<p><code>客户端可通过上述其中一种方法连接到 database server。如果客户端与 database server 位于同一台机器上，那么它们最有可能通过共享内存或流管道进行连接。共享内存的速度通常更快，但可能存在安全风险，因为共享内存消息段对所有客户端均设有读写权限。</code></p>
+<p>Remote clients connect using TCP&#x2F;IP or IPX&#x2F;SPX.In this chapter, we will take an in depth look at the shared memory connection, since it is a custom implementation of Informix Dynamic Server. We will also look at TCP&#x2F;IP and streams, but these implementations use generic function calls.</p>
+<p><code>远程客户端使用 TCP/IP 或 IPX/SPX 协议进行连接。在本章中，我们将深入探讨共享内存连接方式，因为它是 IDS 的一种自定义实现方式。我们也会探讨 TCP/IP 和流（streams）连接方式，但这些实现方式使用的是通用函数调用。</code></p>
+<p><strong>Shared Memory Message Segment</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506281450953.png" alt="image-20250628145034847"></p>
+<p><strong>Notes:</strong></p>
+<p>Clients connect to the database server through the message portion of Informix Dynamic Server shared memory. The size of the message portion is dependent upon the number of users that are allowed to connect to shared memory, set in the NETTYPE parameter. The shared memory message segment has the following components:</p>
+<p><code>客户端通过 IDS 共享内存的消息部分与 server 建立连接。消息部分的大小取决于允许连接到共享内存的用户数量，这一数量由 NETTYPE 参数设定。共享内存消息段包含以下组件：</code></p>
+<p> <strong>•</strong> Shared memory data – There is one shared memory data structure for each poll thread configured for the IDS server. It contains the bitmap for the message buffers and a bitmap for the message status areas. It also has tables for message buffer addresses and message buffer system status areas.</p>
+<p><code>针对为 IDS 服务器配置的每个轮询线程（poll thread），都存在一个共享内存数据结构。该数据结构包含 message buffers 的位图（bitmap）以及 message status areas 的位图。此外，它还包含 message buffer 地址表和 message buffer 系统状态区域表。</code></p>
+<p> <strong>•</strong> Status area – The status area contains one structure for each client connection. This structure includes the client ID, the connection state, the semaphore the client sleeps on, and the buffers the client is reading and writing to. In addition, it keeps a list of each buffer owned by the client ID and its status.</p>
+<p><code>状态区域为每个客户端连接都包含一个结构体。这个结构体包含客户端ID、连接状态、client sleeps on 时所使用的信号量（semaphore），以及客户端正在读写缓冲区（buffers）的相关信息。此外，它还会维护一个列表，记录客户端ID所拥有的每个缓冲区及其状态。</code></p>
+<p> <strong>•</strong> Message buffers – This contains the actual message buffers. The number of message buffers allocated when the system is initialized is: 8 * <em>users</em> * 1.2. The value of <em>users</em> is the number of connections as specified in the NETTYPE configuration parameter times the number of poll threads.</p>
+<p><code>这部分包含实际的消息缓冲区。系统初始化时分配的消息缓冲区数量计算公式为：8 * users * 1.2。其中，users 的值等于 NETTYPE 配置参数中指定的连接数乘以轮询线程（poll threads）的数量。</code></p>
+<p><strong>How Message Buffers are Used</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506281459157.png" alt="image-20250628145953088"></p>
+<p><strong>Notes:</strong></p>
+<p>The status area for a client contains pointers to buffers it <em>owns</em> in the message buffer pool. Buffers allocated to a client ID can be classified as either client buffers or server buffers.</p>
+<p><code>客户端的 status area 包含指向该客户端在消息缓冲区池（message buffer pool）中“拥有”的缓冲区的指针。分配给某个客户端ID的缓冲区可以分为客户端缓冲区（client buffers）或服务器缓冲区（server buffers）。</code></p>
+<p> <strong>•</strong> Client buffers are buffers that the client writes to and the server reads from.</p>
+<p><code>客户端缓冲区（client buffers）是指客户端向其中写入数据，而服务器从中读取数据的缓冲区。</code></p>
+<p> <strong>•</strong> Server buffers are buffers that the server writes to and the client reads from.</p>
+<p><code>服务器缓冲区（server buffers）是指服务器向其中写入数据，而客户端从中读取数据的缓冲区。</code></p>
+<p>Initially, a client connection is allocated 4 client buffers and 4 server buffers. If the session needs more buffers, the server allocates up to 10 buffers for the client and 10 buffers for the server. If the session needs more than 10 buffers, it waits on a semaphore until one is available.</p>
+<p><code>最初，为每个客户端连接分配 4 个客户端缓冲区和 4 个服务器缓冲区。如果会话需要更多缓冲区，server 会为客户端分配最多 10 个缓冲区，为 server 分配最多 10 个缓冲区。如果会话需要的缓冲区数量超过 10 个，那么它会在信号量（semaphore）上等待，直到有可用的缓冲区为止。</code></p>
+<p>Periodically, the server assigns buffers with a status of NOTINUSE back to the free list for the buffer pool and removes it from the allocated list for client connection.</p>
+<p><code>server 会定期将状态为 NOTINUSE（未使用）的缓冲区重新分配回缓冲区池的空闲列表中，并从客户端连接的已分配列表中移除这些缓冲区。</code></p>
+<p><strong>Shared Memory: How Clients Connect</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506281503998.png" alt="image-20250628150322929"></p>
+<p><strong>Notes:</strong></p>
+<p>The following steps detail how the client connects to the database server.</p>
+<ol>
+<li><p>The client reads the file &#x2F;INFORMIXTMP&#x2F;.inf.servicename to get the number of <strong>poll</strong> threads running. If there is more than one <strong>poll</strong> thread running, it selects one. Each poll thread can take a limited number of connections (specified by NETTYPE). If the <strong>poll</strong> thread has reached the connection limit, the client must try another <strong>poll</strong> thread.</p>
+<p><code>客户端会读取文件 /INFORMIXTMP/.inf.servicename 来获取正在运行的 poll（轮询）线程数量。如果存在多个正在运行的 poll 线程，客户端会从中选择一个。每个 poll 线程能够处理的连接数量是有限的（由 NETTYPE 参数指定）。如果某个 poll 线程已达到其连接数量上限，客户端就必须尝试选择另一个 poll 线程。</code></p>
+</li>
+<li><p>The client attaches to the message portion of shared memory.</p>
+<p><code>客户端会附加到共享内存的消息部分。</code></p>
+</li>
+<li><p>The client looks for a free buffer to send a message and fills it.</p>
+<p><code>客户端会寻找一个空闲的缓冲区来发送消息，并将消息填入该缓冲区。</code></p>
+</li>
+<li><p>The <strong>netscb</strong> (network session control block) is initialized for the connection. </p>
+<p><code>netscb（网络会话控制块）会针对该连接进行初始化。</code></p>
+</li>
+<li><p>The client puts the location of the message buffer on the ready queue.</p>
+<p><code>客户端将消息缓冲区的位置放入就绪队列中。</code></p>
+</li>
+<li><p>The client awakens the <strong>poll</strong> thread using a semaphore operation (<strong>semop)</strong>).</p>
+<p><code>客户端使用信号量操作（semop）唤醒 poll 线程。</code></p>
+</li>
+<li><p>The client sleeps on a semaphore to wait for a response.At this point, the poll thread wakes the listen thread, which creates the <strong>sqlexec</strong> thread for the session. From this point on, the <strong>listen</strong> thread is no longer needed for communication.</p>
+<p><code>客户端在信号量上休眠以等待响应。此时，轮询（poll）线程会唤醒监听（listen）线程，该监听线程会为会话创建 sqlexec 线程。从这一刻起，通信过程中就不再需要监听（listen）线程了。</code></p>
+</li>
+</ol>
+<p><strong>Shared Memory: Client Communication</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506281511261.png" alt="image-20250628151111193"></p>
+<p><strong>Notes:</strong></p>
+<p>Once a client connects to the message portion of shared memory, it can now communicate with the server through the message queues.</p>
+<p><code>一旦客户端连接到共享内存的消息部分，它现在就可以通过消息队列与服务器进行通信。</code></p>
+<ol>
+<li><p>The client application places a message (SQL STATEMENT, for example) in a free message buffer in the message portion of shared memory. When it uses a buffer, it marks the buffer as used so that it is not overwritten by another client or by the poll thread.</p>
+<p><code>客户端应用程序将一条消息（例如，SQL 语句）放入共享内存消息部分的一个空闲消息缓冲区中。当它使用某个缓冲区时，会将该缓冲区标记为“已使用”，以防止其他客户端或轮询（poll）线程覆盖它。</code></p>
+</li>
+<li><p>The client puts its ID on the message ready queue.</p>
+<p><code>客户端将其标识符（ID）放入消息就绪队列中。</code></p>
+</li>
+<li><p>The client sleeps on a semaphore.</p>
+<p><code>客户端在信号量上休眠（或等待）。</code></p>
+</li>
+<li><p>The poll thread periodically wakes up and looks through the message ready queue, checking to see if a message has been sent.</p>
+<p><code>轮询（poll）线程会定期唤醒，并遍历消息就绪队列，检查是否有消息被发送。</code></p>
+<p><strong>Note</strong></p>
+<p>The poll thread can potentially have a lot of work to do, handling incoming messages; it checks the message ready queue quite often. Although it is generally more efficient for the poll thread to run on the CPU VP (in-line polling), a very busy poll thread could cause the <strong>sqlexec</strong> threads to wait longer for a free CPU VP.</p>
+<p><code>轮询（poll）线程可能面临大量工作，负责处理传入的消息；它会非常频繁地检查消息就绪队列。尽管通常让轮询线程在 CPU 虚拟处理器（VP）上运行（in-line polling，即内联轮询）效率更高，但一个非常繁忙的轮询线程可能会导致 sqlexec 线程需要等待更长时间才能获得一个空闲的 CPU 虚拟处理器（VP）。</code></p>
+</li>
+<li><p>If there is a message, it takes the message entry off the ready queue, and copies the message from the message buffer to the session pool. It releases the message buffer and, if the <strong>sqlexec</strong> thread is waiting on the <strong>sm_read</strong> condition, it puts the <strong>sqlexec</strong> thread on the ready queue to process the message.</p>
+<p><code>如果存在消息，它会从就绪队列中取出该消息条目，并将消息从消息缓冲区复制到会话池中。之后，它会释放该消息缓冲区，并且如果 sqlexec 线程正在等待 sm_read 条件，它会将 sqlexec 线程放入就绪队列中以处理该消息。</code></p>
+</li>
+</ol>
+<p><strong>Shared Memory: Server Communication</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506281520299.png" alt="image-20250628152035225"></p>
+<p><strong>Notes:</strong></p>
+<p>The <strong>sqlexec</strong> thread leaves the <strong>poll</strong> thread out of operations that write to the client application.</p>
+<p><code>sqlexec 线程在执行向客户端应用程序写入数据的操作时，不会让 poll 线程参与其中（即 poll 线程不参与这些写入操作）。</code></p>
+<ol>
+<li><p>The <strong>sqlexec</strong> thread places the message to be sent to the client (usually SQL results) in the message buffer. </p>
+<p><code>sqlexec 线程将待发送给客户端的消息（通常是 SQL 查询结果）放入消息缓冲区中。</code></p>
+</li>
+<li><p>The <strong>sqlexec</strong> thread wakes the client process.</p>
+<p><code>sqlexec 线程唤醒客户端进程。</code></p>
+</li>
+<li><p>The client reads the message buffer.</p>
+<p><code>客户端读取消息缓冲区。</code></p>
+</li>
+</ol>
+<p><strong>How Utilities Communicate</strong></p>
+<p>Utilities such as <strong>oncheck</strong> and <strong>ontape</strong> usually do not communicate to the server like other clients. Instead they rely on lower level functions.</p>
+<p><code>像 oncheck 和 ontape 这样的工具通常不会像其他客户端那样与服务器进行通信。相反，它们依赖于底层函数。</code></p>
+<p>– <strong>onbar</strong> uses stream buffers to move pages</p>
+<p><code>onbar 使用 stream buffers 来移动数据页（pages）。</code></p>
+<p>– <strong>onmode</strong> attaches directly to the resident segment and modifies structures itself</p>
+<p><code>onmode 工具直接连接到常驻内存段（resident segment），并自行修改其中的数据结构。</code></p>
+<p>– <strong>oncheck</strong> use lower-level calls to pass messages to its associated server thread</p>
+<p><code>oncheck 使用较低级别的调用（lower-level calls）来向其关联的服务器线程传递消息。</code></p>
+<p><strong>Notes:</strong></p>
+<p>Informix Dynamic Server utilities do not usually connect and send messages like other clients. Instead, they use a variety of techniques, bypassing the high-level communication protocol.</p>
+<p><code>IDS 工具通常不会像其他客户端那样进行连接并发送消息。相反，它们采用多种技术，绕过了高级通信协议。</code></p>
+<p><strong>Files Used for Shared Memory</strong></p>
+<p> &#x2F;INFORMIXTMP&#x2F;.inf.servicename</p>
+<p> $INFORMIXDIR&#x2F;etc&#x2F;.infos.dbservername</p>
+<p><strong>Notes:</strong></p>
+<p>The following files are used in shared memory communications.</p>
+<p><code>以下文件用于共享内存通信。</code></p>
+<p> <strong>• .inf.servicename</strong> – Informix Dynamic Server creates this file when it initiates a shared memory poll thread and removes the file when you take the database server offline. The name of this file is derived from the <strong>servicename</strong> field of the <strong>sqlhosts</strong> file. IDS keeps information about client&#x2F;server connections in this file. If this file is accidently deleted, you must restart the server. This file includes the following information:</p>
+<p><code>IDS 在启动共享内存轮询线程时会创建此文件，并在将数据库服务器置于离线状态时删除该文件。此文件的名称源自 sqlhosts 文件中的 servicename 字段。IDS 会在此文件中保存有关客户端/服务器连接的信息。如果此文件被意外删除，您必须重启服务器。此文件包含以下信息：</code></p>
+<p> <strong>-</strong> Shared memory segment ID</p>
+<p><code>共享内存段ID</code></p>
+<p> <strong>-</strong> Semaphore information for the two semaphores needed by the server.</p>
+<p><code>服务器所需的两个信号量的相关信息。</code></p>
+<p> <strong>-</strong> Number of poll threads</p>
+<p><code>轮询线程的数量</code></p>
+<p> <strong>-</strong> Offset and size of bitmap in shared memory segment</p>
+<p><code>共享内存段中位图（bitmap）的偏移量和大小。</code></p>
+<p> <strong>-</strong> Offset of status area array in message segment</p>
+<p><code>消息段中 status area array 的偏移量。</code></p>
+<p> <strong>• .infos.dbservername</strong> – IDS creates this file when you initialize shared memory and removes the file when you take the server offline. The name of this file is derived from the DBSERVERNAME configuration parameter. These files allow utilities such as <strong>oncheck</strong>, <strong>onstat</strong>, and <strong>ontape</strong> to attach to the database server.</p>
+<p><code>IDS 在初始化共享内存时会创建此文件，而在将服务器置于离线状态时会删除该文件。此文件的名称源自 DBSERVERNAME  配置参数。这些文件允许诸如 oncheck、onstat 和 ontape 之类的实用工具连接到 server。</code></p>
+<p><strong>Semaphores Used for Connections</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506302342834.png" alt="image-20250630234242729"></p>
+<p><strong>Notes:</strong></p>
+<p>Informix Dynamic Server uses semaphores for coordinating communication between the client and server when a shared memory connection is used. The semaphore is set to signal if a message is waiting in the message buffer for a client.</p>
+<p><code>IDS 在使用共享内存连接时，会利用信号量（semaphores）来协调客户端与服务器之间的通信。当消息缓冲区中有等待客户端接收的消息时，该信号量会被触发（或置位）。</code></p>
+<p>The number of semaphores used by a database server depends on the number of connections allocated in the NETTYPE configuration parameter. If NETTYPE is not set, the database server defaults to 50 user connections. The server allocates a semaphore set containing one semaphore for each connection.</p>
+<p><code>database server 所使用的信号量数量，取决于在 NETTYPE 配置参数中分配的连接数。若未设置 NETTYPE 参数，database server 将默认采用 50 个用户连接。server 会为每个连接分配一个包含单个信号量的信号量集合。</code></p>
+<p>Two additional semaphores are controlled in the <strong>&#x2F;INFORMIXTMP&#x2F;.inf.servicename</strong> file. </p>
+<p><code>/INFORMIXTMP/.inf.servicename 文件中还控制着另外两个信号量。</code></p>
+<p>Because client processes don’t know anything about mutexes, these semaphores are used by clients to lock the message buffers while connecting. The <strong>sm_discon</strong> thread also uses a semaphore to lock the message buffers when cleaning up after a client that has exited.</p>
+<p><code>由于客户端进程对互斥锁（mutexes）一无所知，因此在连接过程中，客户端会使用这些信号量来锁定消息缓冲区。sm_discon 线程在清理已退出的客户端遗留的资源时，也会使用信号量来锁定消息缓冲区。</code></p>
+<p><strong>How semaphores are allocated</strong></p>
+<p>Semaphores are allocated as a set by the operating system. IDS attempts to allocate the semaphores in groups of 100, however depending upon operating system kernel parameters, you might see fewer semaphores in each set.</p>
+<p><code>信号量由操作系统以集合形式进行分配。IDS 会尝试以每组100个的方式分配信号量，但根据操作系统内核参数的不同，每组中实际分配的信号量数量可能会减少。</code></p>
+<p><strong>Other semaphores used</strong></p>
+<p>Semaphores are used by a database server for other purposes as well. Informix Dynamic Server allocates one semaphore for each VP, and one semaphore in its own set for each VP that is added dynamically. The VP semaphores allow an idle VP to sleep, and allow another VP to wake it up when necessary.</p>
+<p><code>database server 还会将信号量用于其他用途。IDS 会为每个虚拟处理器（VP）分配一个信号量，并且会为每个动态添加的虚拟处理器（VP）在其独立的信号量集合中再分配一个信号量。这些针对虚拟处理器（VP）的信号量使得空闲的虚拟处理器能够进入休眠状态，并在必要时允许其他虚拟处理器将其唤醒。</code></p>
+<p>In the slide example, two semaphore sets were initially allocated. The first set includes one semaphore for each VP. Since NETTYPE was not set, the second set contains semaphores for 50 connections, plus two semaphores for the <strong>&#x2F;INFORMIXTMP</strong> file. The additional semaphore sets that contain only one semaphore each were likely allocated for dynamically-added VPs.</p>
+<p><code>在幻灯片示例中，最初分配了两个信号量集合。第一个集合为每个虚拟处理器（VP）包含一个信号量。由于未设置NETTYPE参数，第二个集合包含为50个连接分配的信号量，再加上为 /INFORMIXTMP 文件分配的两个信号量。那些仅包含一个信号量的额外信号量集合，很可能是为动态添加的虚拟处理器（VP）分配的。</code></p>
+<p><strong>Monitoring Shared Memory Connections</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506302355128.png" alt="image-20250630235542068"></p>
+<p><strong>Notes:</strong></p>
+<p>The <strong>onstat -g nsc</strong> command, without any arguments, summarizes each connection with one line. It lists the following:</p>
+<p><code>onstat -g nsc 命令（不带任何参数）会以每行一条记录的形式对各个连接进行汇总。它会列出以下信息：</code></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506302357186.png" alt="image-20250630235733128"></p>
+<p><strong>Monitoring Individual Connections</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202506302358243.png" alt="image-20250630235811169"></p>
+<p><strong>Notes:</strong></p>
+<p>When you include a client ID, the <strong>onstat -g nsc</strong> command lists more detailed information about shared memory I&#x2F;O. In addition to the summary information (shown on the previous page), this command also shows the following:</p>
+<p><code>当指定客户端ID作为参数时，onstat -g nsc 命令会列出有关共享内存I/O的更详细信息。除了（上一页所示的）汇总信息外，该命令还会显示以下内容：</code></p>
+<table>
+<thead>
+<tr>
+<th>title</th>
+<th>desc</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>needbuf</strong></td>
+<td>A flag that is set if the server is waiting for a buffer<br><code>若server正在等待缓冲区，则该标志会被置位</code></td>
+</tr>
+<tr>
+<td><strong>segid</strong></td>
+<td>The segment ID of the message shared memory segment. See <strong>ipcs</strong> to see the segment ID for each allocated segment.<br><code>消息共享内存段的段ID。可使用 ipcs 命令查看每个已分配内存段的段ID。</code></td>
+</tr>
+<tr>
+<td><strong>semnum</strong></td>
+<td>The semaphore number the client waits on<br><code>客户端等待的信号量编号</code></td>
+</tr>
+<tr>
+<td><strong>semid</strong></td>
+<td>The semaphore ID of the semaphore the client waits on. See <strong>ipcs</strong> for a list of semaphores and their IDs.<br><code>客户端所等待的信号量对应的信号量标识符ID。可使用 ipcs 命令查看信号量列表及其ID。</code></td>
+</tr>
+<tr>
+<td><strong>be_curread</strong></td>
+<td>The buffer ID of the message buffer the server is currently reading<br><code>server当前正在读取的消息缓冲区的 buffer ID</code></td>
+</tr>
+<tr>
+<td><strong>be_curwrite</strong></td>
+<td>The buffer ID of the message buffer the server is currently writing to<br><code>server当前正在写入的消息缓冲区的 buffer ID</code></td>
+</tr>
+<tr>
+<td><strong>fe_curread</strong></td>
+<td>The buffer ID of the message buffer the client is currently reading<br><code>client当前正在读取的消息缓冲区的 buffer ID</code></td>
+</tr>
+<tr>
+<td><strong>fe_curwrite</strong></td>
+<td>The buffer ID of the message buffer the client is currently writing to<br><code>client当前正在写入的消息缓冲区的 buffer ID</code></td>
+</tr>
+<tr>
+<td><strong>next* columns</strong></td>
+<td>The buffer IDs that the client and server will process next<br><code>客户端和服务器接下来将处理的 buffer IDs</code></td>
+</tr>
+<tr>
+<td><strong>readyqueue</strong></td>
+<td>The message ready queue. A value of <strong>-1</strong> indicates no entry.<br><code>消息就绪队列。值为 -1 表示没有条目（即队列为空）。</code></td>
+</tr>
+</tbody></table>
+<p>The next set of information is a list of the buffers, their status (<strong>avail</strong>, <strong>inuse</strong>, or <strong>free</strong>), and their address.</p>
+<p><code>接下来的一组信息是缓冲区列表，包括它们的状态可用（avail）、使用中（inuse）或 空闲（free）及其地址。</code></p>
+<p><strong>onstat -g nss</strong></p>
+<p>If you know the session ID, you can get the same information as <strong>onstat -g nsc</strong> by running <strong>onstat -g nss</strong> with the session ID.</p>
+<p><code>如果你知道会话ID，那么通过将会话ID作为参数运行 onstat -g nss 命令，你可以获取到与 onstat -g nsc 命令相同的信息。</code></p>
+<p><strong>Stream Pipes</strong></p>
+<p> More secure connection than shared memory</p>
+<p><code>比共享内存更安全的连接方式</code></p>
+<p> Allows multiple connections from one client</p>
+<p><code>允许一个客户端建立多个连接</code></p>
+<p> Best for communication between two database servers on the same machine</p>
+<p><code>最适合同一台机器上两 database server 之间的通信</code></p>
+<p><strong>Notes:</strong></p>
+<p>There are two flavors of implementation for the named stream pipe net driver—SVR4 &amp; BSD. The SVR4 stream pipe driver is implemented with a named stream pipe with the <strong>connld</strong> module pushed on the server end. The <strong>connld</strong> module provides unique connections between server and client processes. The BSD stream pipe driver is implemented using UNIX domain socket.</p>
+<p><code>命名流管道网络驱动程序有两种实现形式——SVR4 和 BSD。SVR4 流管道驱动程序通过在 server 端加载 connld 模块来实现 named stream pipe。connld 模块为 server 和客户端进程之间提供唯一连接。BSD 流管道驱动程序则是使用 UNIX 域套接字（UNIX domain socket）来实现的。</code></p>
+<p>Streams use a file names specified in the <strong>&#x2F;INFORMIXTMP</strong> directory. For both implementations, the name of the stream pipe is a UNIX filename, which is constructed from the service name field of the sqlhosts file, and placed in <strong>&#x2F;INFORMIXTMP</strong>.</p>
+<p><code>流（Streams）使用在 /INFORMIXTMP 目录中指定的文件名。对于这两种实现方式，流管道的名称都是一个UNIX文件名，该文件名由 sqlhosts 文件中的服务名（service name）字段构造而成，并放置在 /INFORMIXTMP 目录中。</code></p>
+<p>Although shared memory is a faster protocol, there are two areas where shared memory cannot be used and streams is a useful alternative:</p>
+<p><code>尽管共享内存是一种速度更快的协议，但在以下两个领域中无法使用共享内存，而流（Streams）则是一种实用的替代方案：</code></p>
+<p> <strong>•</strong> Because a stream pipes connection does not read or write to shared memory message buffers, it is considered to be more secure than a shared memory connection.</p>
+<p><code>由于流管道连接不会读写共享内存消息缓冲区，因此它被认为比共享内存连接更加安全。</code></p>
+<p> <strong>•</strong> A client cannot have multiple connections to the database via shared memory. Our shared memory protocol was never designed to multiplex, and we’ve never got around to changing that. However a front end can have multiple connections to the server via either streams, TLI or sockets.</p>
+<p><code>客户端无法通过共享内存与数据库建立多个连接。我们的共享内存协议在设计之初就未考虑多路复用功能，而且我们至今也未着手对其进行修改。不过，前端应用程序可以通过流（Streams）、传输层接口（TLI）或套接字（Sockets）与服务器建立多个连接。</code></p>
+<p><strong>•</strong> Two servers on the same machine cannot communicate with each other by shared memory. Streams is a good choice for this type of communication, rather than performing local loopbacks via sockets or TLI.</p>
+<p><code>同一台机器上的两个 server 无法通过共享内存进行相互通信。对于此类通信需求，采用流（Streams）是更好的选择，而非通过套接字（Sockets）或传输层接口（TLI）进行本地回环通信。</code></p>
+<p><strong>Network User Statistics: onstat -g ntu</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202507011947948.png" alt="image-20250701194725824"></p>
+<p><strong>Notes:</strong></p>
+<p>The <strong>onstat -g ntu</strong> command displays network information about each user thread.</p>
+<p><code>onstat -g ntu 命令显示每个用户线程的网络信息。</code></p>
+<p><strong>#netscb</strong></p>
+<p>Total current number of network session control blocks &#x2F; number of all network session control blocks ever allocated</p>
+<p><code>当前已分配的网络会话控制块总数 / 曾分配过的所有网络会话控制块数量</code></p>
+<p><strong>connects</strong></p>
+<p>Total connects performed</p>
+<p><code>已执行的总连接数</code></p>
+<p><strong>read</strong></p>
+<p>Total reads performed</p>
+<p><code>已执行的总读取次数</code></p>
+<p><strong>write</strong></p>
+<p>Total writes performed</p>
+<p><code>已执行的总写入次数</code></p>
+<p><strong>q-free</strong></p>
+<p>Number of free buffers currently on the queue &#x2F; greatest number of free buffers simultaneously on the queue since server initialization</p>
+<p><code>当前队列中空闲缓冲区的数量 / 自服务器初始化以来队列中同时存在的空闲缓冲区的最大数量</code></p>
+<blockquote>
+<p>simultaneously 同时 英[ˌsɪməlˈteɪniəsli] 美[ˌsaɪməlˈteɪniəsli]</p>
+</blockquote>
+<p><strong>q-limits</strong></p>
+<p>Maximum number of free buffers that can be on the queue &#x2F; maximum number of buffers that can be on the queue</p>
+<p><code>队列中可存在的空闲缓冲区的最大数量 / 队列中可容纳的缓冲区的最大数量</code></p>
+<p><strong>q-exceed</strong></p>
+<p>Number of times free-buffer limit has been exceeded &#x2F; number of times buffer limit has been exceeded</p>
+<p><code>空闲缓冲区限制被突破的次数 / 缓冲区限制被突破的次数</code></p>
+<p><strong>alloc&#x2F;max</strong></p>
+<p>Number of buffers currently allocated &#x2F; greatest number of buffers allocated simultaneously since server initialization</p>
+<p><code>当前已分配的缓冲区数量 / 自服务器初始化以来同时分配的缓冲区最大数量</code></p>
+<p><strong>netscb</strong></p>
+<p>Address of the network session control block</p>
+<p><code>网络会话控制块的地址</code></p>
+<p><strong>type</strong> </p>
+<p>Identifier of the protocol this thread uses</p>
+<p><code>该线程所使用的协议的标识符</code></p>
+<p><strong>thread name</strong> </p>
+<p>Name of this thread</p>
+<p><code>线程名</code></p>
+<p><strong>sid</strong> </p>
+<p>Session ID associated with this thread</p>
+<p><code>与该线程关联的会话ID</code></p>
+<p><strong>fd</strong> </p>
+<p>File descriptor for the thread </p>
+<p><code>该线程的文件描述符</code></p>
+<p><strong>poll</strong> </p>
+<p>Mail box number of the poll thread that services this network connection</p>
+<p><code>服务于该网络连接的轮询线程的 Mail box number</code></p>
+<p>Mail box number?</p>
+<p><strong>reads</strong> </p>
+<p>Number of reads for this thread</p>
+<p><code>该线程的读取次数</code></p>
+<p><strong>writes</strong> </p>
+<p>Number of writes for this thread</p>
+<p><code>该线程的写入次数</code></p>
+<p><strong>q-nrm</strong> </p>
+<p>Number of buffers &#x2F; maximum number of buffers on the normal data queue</p>
+<p><code>普通数据队列上的缓冲区数量 / 普通数据队列上的缓冲区最大数量</code></p>
+<p><strong>q-pvt</strong> </p>
+<p>Number of private buffers&#x2F;maximum number of private buffers on the private data queue</p>
+<p><code>私有数据队列上的私有缓冲区数量 / 私有数据队列上的私有缓冲区最大数量</code></p>
+<p><strong>q-exp</strong> </p>
+<p>Number of expedite buffers &#x2F; maximum number of buffers ever on the expedited data queue</p>
+<p><code>加速数据队列上的加速缓冲区数量 / 加速数据队列上曾出现过的缓冲区最大数量</code></p>
+<p><strong>Network User Times: onstat -g ntt</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202507011959250.png" alt="image-20250701195901170"></p>
+<p><strong>Notes:</strong></p>
+<p>The <strong>onstat -g ntt</strong> command prints thread access times.</p>
+<p><code>onstat -g ntt 命令会打印线程访问时间。</code></p>
+<p><strong>netscb</strong> </p>
+<p>Address of the network session control block</p>
+<p><code>网络会话控制块的地址</code></p>
+<p><strong>thread name</strong> </p>
+<p>Name of the thread</p>
+<p><code>线程名</code></p>
+<p><strong>sid</strong> </p>
+<p>Session ID of the thread</p>
+<p><code>该线程的会话ID</code></p>
+<p>The next three entries show only time if the event occurred today and a time and date if the event occurred prior to today. </p>
+<p><code>接下来的三项条目仅显示当天发生事件的时间；若事件发生在当天之前，则同时显示时间和日期。</code></p>
+<p><strong>open</strong> </p>
+<p>Time of the last open event</p>
+<p><code>最后一次开启事件的时间</code></p>
+<p><strong>read</strong> </p>
+<p>Time of the last close event </p>
+<p><code>最后一次关闭事件的时间</code></p>
+<p><strong>write</strong> </p>
+<p>Time of the last write event</p>
+<p><code>最后一次写入事件的时间</code></p>
+<p><strong>address</strong> </p>
+<p>Address of the server, only valid on listener thread</p>
+<p><code>server 地址（仅在监听线程上有效）</code></p>
+<p><strong>Network Statistics by Service: onstat -g ntd</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202507012002983.png" alt="image-20250701200256892"></p>
+<p><strong>Notes:</strong></p>
+<p>The <strong>onstat -g ntd</strong> command prints network dispatch information.</p>
+<p><code>onstat -g ntd 命令会打印网络分发信息。</code></p>
+<p><strong>Client Type</strong> </p>
+<p>Type of client service</p>
+<p><code>客户端服务类型</code></p>
+<p><strong>Calls</strong> </p>
+<p><strong>yes</strong>: clients of this type are being allowed connections</p>
+<p><code>此类客户端被允许建立连接</code></p>
+<p><strong>no</strong>: connections of this type are not currently allowed</p>
+<p><code>目前不允许此类连接</code></p>
+<p><strong>Accepted</strong> </p>
+<p>Number of times this client type has had a thread spawned</p>
+<p><code>此类客户端类型已触发线程生成的次数</code></p>
+<p><strong>Rejected</strong> </p>
+<p>Number of times a connection to this client type has been rejected</p>
+<p><code>针对此类客户端类型的连接被拒绝的次数</code></p>
+<p><strong>Read</strong> </p>
+<p>Total number of messages sent from this client type</p>
+<p><code>此类客户端类型发送的消息总数</code></p>
+<p><strong>Write</strong> </p>
+<p>Total number of message sent to this client type</p>
+<p><code>发送给此类客户端类型的消息总数</code></p>
+<p>All statistics shown in this and other network reports are based on activity since the database server was last initialized.</p>
+<p><code>本报告及其他网络报告中显示的所有统计数据均基于自数据库服务器上次初始化以来的活动情况。</code></p>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <footer class="article-footer">
+       
+    </footer>
+  </div>
+
+   
+    
+</article>
+
+    
+    <article
   id="post-IX9111/9"
   class="article article-type-post"
   itemscope
@@ -3382,272 +3794,6 @@ Extents
 <p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505082234005.png" alt="image-20250508223442940"></p>
 <p>0x101就是257，所以第一条记录的rowid就是0x101</p>
 <p>前边提到，IX9111不推荐这种写法（库名:表名），推荐用partition number</p>
- 
-      <!-- reward -->
-      
-    </div>
-    
-
-    <!-- copyright -->
-    
-    <footer class="article-footer">
-       
-    </footer>
-  </div>
-
-   
-    
-</article>
-
-    
-    <article
-  id="post-IX9111/1"
-  class="article article-type-post"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
-    
-    <header class="article-header">
-       
-<h2 itemprop="name">
-  <a class="article-title" href="/2025/04/26/IX9111/1/"
-    >IX9111 - Unit 1. Introduction</a> 
-</h2>
- 
-
-      
-    </header>
-     
-    <div class="article-meta">
-      <a href="/2025/04/26/IX9111/1/" class="article-date">
-  <time datetime="2025-04-26T13:30:01.000Z" itemprop="datePublished">2025-04-26</time>
-</a> 
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/IX9111/">IX9111</a>
-  </div>
- 
-    </div>
-      
-    <div class="article-entry" itemprop="articleBody">
-       
-  <p><strong>chunks</strong></p>
-<p>Chunks contain extents; extents contain pages Chunks contain extents; extents contain page</p>
-<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202504272252887.png" alt="image-20250427225213804"></p>
-<p>Informix Dynamic Server disk space is allocated in units called chunks.</p>
-<p>To uniquely describe a particular <strong>chunk</strong>, you must specify three things: the chunk <strong>path</strong>, the <strong>offset</strong> (kilobytes) into the device where the chunk begins, and the <strong>size</strong> (kilobytes) of the chunk.</p>
-<br>
-
-<p><strong>pages</strong></p>
-<p>The <strong>default page size</strong> is either <strong>2</strong> kilobytes or <strong>4</strong> kilobytes, depending on the platform.</p>
-<p><code>默认页大小 2KB 或 4KB (kilobytes是KB)</code></p>
-<p>The <strong>page size</strong> can be configured for each dbspace from <strong>2K</strong> to <strong>16K</strong> and <strong>must be divisible by the default page size</strong>.</p>
-<p><code>页大小可配置为2K - 16K，必须能被默认页面大小整除</code></p>
-<p>The <strong>size of a chunk</strong> must be <strong>a multiple of the page size</strong>.</p>
-<p><code>chunk的大小必须是页大小的倍数</code></p>
-<br>
-
-<p><strong>extents</strong></p>
-<p>An <em>extent</em> is a <strong>physically contiguous</strong> group of related pages that are <strong>fully contained in a chunk</strong>.</p>
-<p><code>extent是物理上连续的一组相关pages，这些页面完全包含在一个chunk中。</code></p>
-<p>Extents are not exclusively associated with tblspaces.The physical log is made from one extent. The 12 reserved pages in the root dbspace could also be called an extent</p>
-<p><code>extents不只和tblspaces关联。物理日志由一个extent构成。rootdbs的12个保留页也可以被叫做一个extent</code></p>
-<br>
-
-<p><strong>Tblspaces</strong></p>
-<p>A tblspace is a set of extents allocated to a specific database object.   </p>
-<p><code>tblspace是分配给特定数据库对象的一组extent。</code></p>
-<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202504272245936.png" alt="image-20250427224506870"></p>
-<p>A <em>tblspace</em> is a logical collection of extents within a dbspace. A tblspace can represent an entire table or index, or a table or index fragment. Each extent can contain a variety of page types. When a tblspace is created, an initial extent is allocated. Its size is 8 pages by default, but can be set using the EXTENT SIZE clause of the CREATE TABLE statement in SQL. As the table grows, new extents must be allocated. The default size of each <em>next</em>  <em>extent</em> is also 8 pages, but can be set using the NEXT SIZE clause.</p>
-<p><code>tblspace是dbspace内extent的逻辑集合。tblspace可以表示整个表或索引，也可以表示表或索引的片段。每个extent可以包含多种页类型。创建tblspace时，会分配一个初始extent。其大小默认为8页，但可以使用 SQL 中 CREATE TABLE 语句的 EXTENT SIZE 子句进行设置。随着表的增长，必须分配新的extent，下一个extent的默认大小也是 8 页，但可以使用 NEXT SIZE 子句进行设置。</code></p>
-<p>The extent allocation mechanism for tblspaces has a few additional features: </p>
-<p><code>tblspace的extent分配机制有一些额外特性</code></p>
-<ol>
-<li><p>When an extent is allocated adjacent to the extent previously allocated for the same tblspace, the two can be concatenated to form one large extent. </p>
-<p><code>当一个extent分配到与先前为同一tblspace分配的extent相邻的位置时，可以将这两个extent连接起来以形成一个大extent。</code></p>
-</li>
-<li><p>As a tblspace becomes fragmented, the size used for new extent allocations is adjusted upward from its configured value. Specifically, NEXT SIZE is doubled for every 16 extents that are allocated.</p>
-<p><code>当一个tblspace变得碎片化时，用于新extent分配的大小会在其配置值的基础上向上调整。具体来说，每分配16个extent，NEXT SIZE就会翻倍。</code></p>
-</li>
-<li><p>When an extent allocation requires more contiguous space than is available in the dbspace, the server simply allocates the largest amount of contiguous space available.</p>
-<p><code>当extent分配所需的连续空间大于 dbspace 中可用的连续空间时，server会直接分配可用的最大连续空间。</code></p>
-<p>This mechanism helps to avoid reaching extent allocation limits.</p>
-<p><code>此机制有助于避免达到extent分配限制。</code></p>
-</li>
-</ol>
-<br>
-
-<p><strong>Dbspaces, Blobspaces, and Sbspaces</strong></p>
-<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202504272258506.png" alt="image-20250427225802434"></p>
-<p>Dbspaces, blobspaces, and sbspaces are named collections of one or more chunks. These spaces do not define any physical space boundaries, but are <em>logical</em> collections of the <em>physical</em> chunks.</p>
-<p><code>前一句不知道怎么翻译，理解成每个space都有名字，由一个或多个chunk组成吧。这些space没有定义任何物理空间边界，而是物理chunk的逻辑集合。</code></p>
-<p>A <em>dbspace</em> chunk contains data and index pages in the form of tblspaces. The first dbspace in an Informix Dynamic Server system always contains the first chunk, or <em>root chunk</em>. Therefore, dbspace 1 is always the <em>root dbspace</em>.</p>
-<p><code>dbspace chunk以tblspace的形式包含数据页和索引页。IDS的第一个dbspace始终包含第一个chunk，或称为root chunk。因此dbspace 1 始终是 root dbspace</code></p>
-<p>A blobspace chunk contains BYTE and TEXT data.</p>
-<p><code>blobspace chunk包含BYTE和TEXT数据</code></p>
-<p>An sbspace chunk contains smart large object (BLOB and CLOB) data and metadata pages to help manage the data.</p>
-<p><code>sbspace chunk包含智能大对象（BLOB 和 CLOB）数据和元数据页，以帮助管理数据。</code></p>
-<p><strong>Shared Memory</strong></p>
-<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505032211153.png" alt="image-20250503221105036"></p>
-<p>Shared memory in Informix Dynamic Server is divided into three portions:</p>
-<p>IDS中的共享内存分为3个不分：</p>
-<p>The <em>resident portion</em> contains the buffer cache and other system information. These shared memory segments can be configured to remain resident in main memory.  </p>
-<p><code>“常驻部分”包含缓冲区缓存和其他系统信息。这些共享内存段可以配置为驻留在主内存中。</code></p>
-<p>The <em>virtual portion</em> contains information about threads and sessions, data object caching, and temporary data needed for activities such as sorting and parallel data query. This information grows and changes constantly, so the database server must handle the allocation and deallocation of memory.</p>
-<p><code>“虚拟部分”包含有关线程和会话、数据对象缓存以及排序和并行数据查询等活动所需的临时数据的信息。这些信息不断增长和变化，因此数据库服务器必须处理内存的分配和释放。</code></p>
-<p>Clients connecting to the database server by shared memory leave and collect messages in the <em>message portion</em> of shared memory. This portion is created only if you configure shared memory as a communications method for the server.</p>
-<p><code>通过共享内存连接到数据库服务器的客户端会在共享内存的“消息部分”中发送和接收消息。仅当您将共享内存配置为服务器的通信方式时，才会创建此部分。</code></p>
-<p><strong>A Local Delete</strong></p>
-<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505032225865.png" alt="image-20250503222537796"></p>
-<p>The above example assumes that the client is using a shared-memory connection.</p>
-<p><code>上面的例子假设客户端正在使用共享内存连接。</code></p>
-<ol>
-<li><p>When you type <strong>dbaccess</strong>, the UNIX shell spawns a client process.</p>
-<p><code>当你输入dbaccess，UNIX shell 会生成一个客户端进程。</code></p>
-</li>
-<li><p>When you connect to a database, the client process connects to Dynamic Server shared memory. The database server (which is chiefly a collection of processes called <strong>oninit</strong>) detects a new connection and creates a session and an <strong>sqlexec</strong> thread for the session. The <strong>sqlexec</strong> thread waits for further instructions from the client.</p>
-<p><code>连接到数据库时，客户端进程会连接到动态服务器共享内存。数据库服务（主要是一个称为oninit的进程集合）会检测到一个新连接，并为会话创建一个会话和一个sqlexec线程。sqlexec 线程等待客户端将来的指令。</code></p>
-<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505032233662.png" alt="image-20250503223234075"></p>
-</li>
-<li><p>The client connects to the server with the CONNECT or DATABASE statement. Opening the database involves many read and write operations.</p>
-<p><code>客户端通过 CONNECT 或 DATABASE 语句连接服务器。打开数据库涉及许多读写操作。</code></p>
-</li>
-<li><p>Assume that our <strong>sqlexec</strong> thread decides it must scan page 30 in chunk 4. (By the end of this course, you will understand the method by which a thread arrives at this decision in agonizing detail. For now, be thankful for broad assumptions.) First it finds a free <em>buffer</em>, a page-size swath of memory, in the shared memory buffer pool. It locks this buffer, taking temporary ownership of it. The <strong>sqlexec</strong> thread then places a request for page 30 from chunk 4 into the AIO request queue, and then goes to sleep. Again, speaking in broad generalities, the kernel asynchronous I&#x2F;O system (or the Dynamic Server AIO mechanism) puts the page into the buffer, overwriting whatever was there previously. Then the <strong>sqlexec</strong> thread wakes up and scans the buffer for the desired information. The buffer can now be unlocked, (though not freed), so that other processes who require the same page do not have to read it from disk.</p>
-<p><code>假设我们的 sqlexec 线程决定它必须扫描块 4 中的第 30 页。（在本课程结束时，您将理解线程做出此决定的详细过程。现在，请感谢宽泛的假设。）首先，它在共享内存缓冲池中找到一个可用缓冲区，即一个页面大小的内存区域。它锁定此缓冲区，并暂时拥有它。然后，sqlexec 线程将对块 4 中第 30 页的请求放入 AIO 请求队列，然后进入睡眠状态。同样，广义上讲，内核异步 I/O 系统（或 Dynamic Server AIO 机制）将页面放入缓冲区，覆盖先前的内容。然后，sqlexec 线程唤醒并扫描缓冲区以查找所需信息。现在可以解锁缓冲区（但不能释放），以便其他需要同一页面的进程不必从磁盘读取它。</code></p>
-<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505032240217.png" alt="image-20250503224006136"></p>
-</li>
-<li><p>The server process sends an <em>OK</em> message to the client, indicating that the previous operation (database open) was successful. The client then sends the DELETE statement to the server, where it is <em>parsed</em> (the syntax is broken down and interpreted) and optimized (a plan to quickly find the target row(s) is formulated).</p>
-<p><code>服务器进程向客户端发送 OK 消息，表示上一个操作（打开数据库）成功。然后，客户端将 DELETE 语句发送到服务器，服务器对其进行解析（语法分解和解释）和优化（制定快速找到目标行的方案）。</code></p>
-</li>
-<li><p>If transaction logging is turned on for the database about to be modified, by definition, all changes must be logged as part of a transaction. Since the server has received no BEGIN WORK statement to this point, it treats this lone DELETE statement as a singleton transaction, meaning that surrounding the one operation are implicit BEGIN WORK and COMMIT WORK SQL statements. Therefore, before performing the delete operation, the <strong>sqlexec</strong> thread sends a BEGIN WORK log record, a digested form of the BEGIN WORK statement, to the logical log buffer.</p>
-<p><code>如果要修改的数据库启用了事务日志记录，那么根据定义，所有更改都必须作为事务的一部分进行记录。由于服务器目前尚未收到任何 BEGIN WORK 语句，因此它会将此单独的 DELETE 语句视为一个单例事务，这意味着围绕该操作的是隐式的 BEGIN WORK 和 COMMIT WORK SQL 语句。因此，在执行删除操作之前，sqlexec 线程会将 BEGIN WORK 日志记录（BEGIN WORK 语句的摘要形式）发送到逻辑日志缓冲区。</code></p>
-<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505032244997.png" alt="image-20250503224426924"></p>
-<p>The next step is for the server to lock, then modify a particular data page in the <strong>customer</strong>table. There is no reason to read the page from disk if it already exists in shared memory,  so the server first determines whether the page containing the target row is in the buffer pool.</p>
-<p><code>下一步是服务器锁定客户表中的特定数据页，然后进行修改。如果该页已存在于共享内存中，则无需从磁盘读取该页，因此服务器首先会确定包含目标行的页是否位于缓冲池中。</code></p>
-</li>
-<li><p>Let us assume the page had, in fact, been read into a buffer pool by an earlier query, and that this buffer has never been modified. Assuming the buffer is not locked by another thread, the <strong>sqlexec</strong> thread locks it exclusively. Then, prior to changing the data, the server copies the <em>before image</em> of this page to the physical log buffer.</p>
-<p><code>假设该页面实际上已被先前的查询读入缓冲池，并且该缓冲区从未被修改过。假设该缓冲区未被其他线程锁定，则 sqlexec 线程会对其进行独占锁定。然后，在更改数据之前，服务器会将该页面的“前映像”复制到物理日志缓冲区。</code></p>
-</li>
-<li><p>The target row on the page is then deleted.</p>
-<p><code>然后删除页面上的目标行。</code></p>
-<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505032250593.png" alt="image-20250503225034532"></p>
-</li>
-<li><p>After deleting the row, the database server writes a DELETE record of the change row. A record of table and row information is copied to the logical log buffer in memory.</p>
-<p><code>删除行后，数据库服务会写入更改行的 DELETE 记录。表和行信息的记录被复制到内存中的逻辑日志缓冲区。</code></p>
-</li>
-<li><p>The singleton transaction is then committed. All associated locks are freed, and a binary version of a COMMIT WORK record is written to the logical log buffer. At this point, if the affected database uses <em>unbuffered</em> logging*,* the server writes the contents of the logical log buffer to the current log file on disk before returning a <em>success</em>status to the client process. Assume for the sake of this example that our database uses <em>buffered</em> logging, in which case the server does not flush the log buffer unless it is full.</p>
-<p><code>然后提交单事务。所有关联的锁都会被释放，并且 COMMIT WORK 记录的二进制版本会写入逻辑日志缓冲区。此时，如果受影响的数据库使用非缓冲日志记录，则服务器会将逻辑日志缓冲区的内容写入磁盘上的当前日志文件，然后再向客户端进程返回成功状态。为了便于说明，假设我们的数据库使用缓冲日志记录，在这种情况下，除非日志缓冲区已满，否则服务器不会刷新日志缓冲区。</code></p>
-<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505032259197.png" alt="image-20250503225947128"></p>
-</li>
-<li><p>Once the transaction has committed successfully, the server process sends an <em>OK</em>message back to the client. The server then waits on a condition for further instructions. If the client exits at this point, the following events occur:</p>
-<p><code>一旦事务成功提交，服务器进程就会向客户端发送一条 OK 消息。然后，服务器等待进一步的指令。如果客户端在此时退出，则会发生以下事件：</code></p>
-<p><strong>-</strong> The session threads release any resources, such as locks or buffers. </p>
-<p>会话线程会释放所有资源，例如锁或缓冲区。</p>
-<p> <strong>-</strong> The session threads and the session memory disappear.</p>
-<p>会话线程和会话内存会消失。</p>
-<p> <strong>-</strong> The client detaches from shared memory.</p>
-<p>客户端脱离共享内存。</p>
-</li>
-</ol>
-<p><strong>Writing Buffer Pages to Disk</strong></p>
-<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505032304898.png" alt="image-20250503230458815"></p>
-<p>The transaction might be over as far as we are concerned, but nothing our server process did has yet been stored permanently. If shared memory were to vanish suddenly, our changes would be lost.</p>
-<p><code>就我们而言，事务可能已经结束，但我们的服务器进程所做的一切还没有被永久保存（持久化）。如果共享内存突然消失，我们的更改也会丢失。</code></p>
-<ol>
-<li><p>Assuming other sessions continue working after our session disconnected, one of them eventually fills the physical log buffer. The PIO virtual processor flushes the physical log buffer (unless kernel asynchronous I&#x2F;O is used, in which case the kaio thread performs the I&#x2F;O). All before images stored in the buffer are written to the physical log on disk, and the buffer can now be overwritten by new before images.</p>
-<p><code>假设我们的会话断开后其他会话继续工作，其中一个会话最终会填满物理日志缓冲区。PIO 虚拟处理器会刷新物理日志缓冲区（除非使用内核异步 I/O，在这种情况下，kaio 线程会执行 I/O）。所有存储在缓冲区中的前像都会写入磁盘上的物理日志，现在缓冲区可以被新的前映像覆盖。</code></p>
-</li>
-<li><p>Likewise, the LIO virtual processor or the kaio facility flushes the logical log buffer. All transaction log records stored in the buffer, having been packaged there in the form of new logical log pages, are written to the logical log currently in use.</p>
-<p><code>同样，LIO 虚拟处理器或 kaio 工具会刷新逻辑日志缓冲区。所有存储在缓冲区中的事务日志记录，都会以新的逻辑日志页的形式打包，并写入当前正在使用的逻辑日志中。</code></p>
-</li>
-</ol>
-<p>Note that the order of these two operations is random, and is usually dependent on which buffer fills first. However, a page cleaner ensures that the before image of a page is written to the physical log before its modified image is written to disk from the buffer pool.</p>
-<p><code>请注意，这两个操作的顺序是随机的，通常取决于哪个缓冲区先被填满。但是，页面清理器会确保在页面的修改后映像从缓冲池写入磁盘之前，先将页面的修改前映像写入物理日志。  </code></p>
-<p><strong>Performing a Checkpoint</strong></p>
-<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505032316212.png" alt="image-20250503231650138"></p>
-<p>Now that the before image of our page has been written to the physical log and all actions we took on the page have been recorded in the logical log, we can recover the transaction if it became necessary. But replaying transactions using logical logs takes time, and we would rather do as little work as possible during a recovery.At this point, if we were to synchronize the data in shared memory with the data in our chunks—flushing all dirty pages, flushing both log buffers, and marking our current position in the logical log—we would produce a <em>known point of consistency</em>. In the event of a failure, we could return to this synchronization point or <em>checkpoint</em>, replay only the actions taken on the database since then, and the time it would take to get the system back online would be minimized.</p>
-<p><code>现在，页面的“前映像”已写入物理日志，并且我们在页面上执行的所有操作都已记录在逻辑日志中，我们可以在必要时恢复事务。但是，使用逻辑日志重放事务需要时间，我们希望在恢复期间尽可能少地执行工作。此时，如果我们将共享内存中的数据与块中的数据同步（刷新所有脏页，刷新两个日志缓冲区，并标记我们在逻辑日志中的当前位置），我们将产生一个已知的一致性点。如果发生故障，我们可以返回到此同步点或检查点，仅重放自那时以来在数据库上执行的操作，从而最大限度地缩短系统恢复在线所需的时间。</code></p>
-<ol>
-<li><p>First, a checkpoint is <em>requested</em>. There are many conditions or events that trigger a checkpoint request. For example:</p>
-<p><code>触发检查点请求的条件或事件有很多。例如：</code></p>
-<p><strong>-</strong> The checkpoint time-out value has elapsed and pages have been modified</p>
-<p><code>检查点超时值已过且页面已被修改</code></p>
-<p> <strong>-</strong> The physical log becomes 75% full</p>
-<p><code>物理日志已满 75%</code></p>
-<p> <strong>-</strong> The administrator forces a checkpoint</p>
-<p><code>管理员强制检查点</code></p>
-<p>Configuration parameters that could affect when a checkpoint occurs include:</p>
-<p><code>可能影响检查点发生时间的配置参数包括：</code></p>
-<p> <strong>-</strong> CKPTINTVL – Specifies the interval between the completion of one checkpoint and the request for the next checkpoint.</p>
-<p><code>CKPTINTVL – 指定一个检查点完成与下一个检查点请求之间的间隔。</code></p>
-<p> <strong>-</strong> AUTO_CKPTS – If enabled, critical resources are monitored and checkpoint frequency is adjusted to reduce transaction blocking.</p>
-<p><code>AUTO_CKPTS – 如果启用，则会监视关键资源并调整检查点频率以减少事务阻塞。</code></p>
-<p> <strong>-</strong> RTO_SERVER_RESTART – This parameter specifies, in seconds, the recovery time objective for restarting the database server after a server failure. Checkpoint frequency is adjusted to meet the specified objective.</p>
-<p><code>RTO_SERVER_RESTART – 此参数指定服务器故障后重新启动数据库服务器的恢复时间目标（以秒为单位）。检查点频率会进行调整以满足指定的目标。</code></p>
-</li>
-<li><p>To ensure a point of consistency, the database server sets off a global block to suspend all transactions. Once all servers have reached a point where they can safely suspend their work, checkpoint information is recorded (as if it has already occurred) in the physical log reserve page, but <em>not</em> to the checkpoint reserved page. The global block is then released so that server activity can continue.</p>
-<p><code>为了确保一致性点，数据库服务器会触发全局阻塞来暂停所有事务。一旦所有服务器都达到可以安全暂停工作的程度，检查点信息就会被记录在物理日志保留页中（如同已经发生过一样），但不会记录在检查点保留页中。然后全局阻塞会被释放，以便服务器活动可以继续进行。</code></p>
-</li>
-<li><p>Next, the server flushes the physical log buffer contents to the physical log on disk.</p>
-<p><code>接下来，服务器会将物理日志缓冲区中的内容刷新到磁盘上的物理日志中。</code></p>
-</li>
-</ol>
-<p><strong>Non-blocking checkpoints</strong></p>
-<p>In version 11.10 of Informix Dynamic Server, new algorithms make it possible to avoid transaction blocking during most types of checkpoints. Because checkpoint information is saved at the beginning of the checkpoint process, it is no longer necessary to block transactions while pages are flushed to disk. If the server is interrupted during a checkpoint, then fast recovery can restore from the previous checkpoint. Blocking checkpoints are still required to perform a system backup, and when other system events occur, such as the adding of a dbspace.</p>
-<p><code>在 Informix Dynamic Server 11.10 版本中，新算法可以避免大多数类型的检查点期间的事务阻塞。由于检查点信息在检查点过程开始时保存，因此在将页面刷新到磁盘时不再需要阻塞事务。如果服务器在检查点期间中断，则快速恢复可以从上一个检查点恢复。执行系统备份以及发生其他系统事件（例如添加数据库空间）时仍然需要阻塞检查点。</code></p>
-<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505032338289.png" alt="image-20250503233813202"></p>
-<ol start="4">
-<li>All dirty pages in the shared-memory buffer pool are written to disk by page cleaner threads. Physical and logical log buffers are flushed to disk.</li>
-</ol>
-<p>   <code>共享内存缓冲池中的所有脏页都由页面清理线程写入磁盘。物理和逻辑日志缓冲区均被刷新到磁盘。</code></p>
-<ol start="5">
-<li><p>A special record called a <em>checkpoint record</em> is written to the logical log buffer. The physical and logical consistency point on disk is updated to the CKPT reserved page.</p>
-<p><code>一个称为检查点记录的特殊记录被写入逻辑日志缓冲区。磁盘上的物理和逻辑一致性点被更新到 CKPT 保留页。</code></p>
-</li>
-</ol>
-<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505032341006.png" alt="image-20250503234102938"></p>
-<p><strong>Flushing the Physical Log</strong></p>
-<ol start="6">
-<li><p>The last step in the checkpoint process is to <em>logically empty</em> the physical log. Logically emptying the log means setting its <em>begin address</em> equal to its current address, an operation that is much less expensive than filling the log with zeros or changing the log in any physical way.</p>
-<p><code>检查点过程的最后一步是逻辑上清空物理日志。逻辑上清空日志意味着将其起始地址设置为其当前地址，这个操作比用零填充日志或以任何物理方式更改日志的开销要小得多。</code></p>
-</li>
-</ol>
-<p><strong>Fast Recovery</strong></p>
-<p> Always occurs during database server startup</p>
-<p><code>总是在数据库服务器启动时发生</code></p>
-<p> Brings the database to a consistent state</p>
-<p><code>使数据库达到一致状态</code></p>
-<p> Consists of two phases</p>
-<p><code>包含两个阶段</code></p>
-<p>– Physical recovery</p>
-<p>物理恢复</p>
-<p>– Logical recovery</p>
-<p>逻辑恢复</p>
-<p>When a database server is brought from Online to Offline mode, the server threads perform a checkpoint to make sure that all data in shared memory gets written to disk. However, events could occur that cause the server to be shut down before it has a chance to complete a checkpoint.</p>
-<p><code>当数据库服务器从在线模式切换到离线模式时，服务器线程会执行检查点操作，以确保共享内存中的所有数据都已写入磁盘。然而，某些事件可能会导致服务在完成检查点操作之前关闭。</code></p>
-<p><em>Fast recovery</em> is the process that Informix Dynamic Server goes through every time a database server is started. If the database server was terminated abnormally, the fast recovery process uses the physical and logical logs to restore the database server to a state of consistency. There are two phases to the fast recovery process: physical recovery and logical recovery.</p>
-<p><code>快速恢复是 IDS 每次启动数据库服务时都会经历的过程。如果数据库服务器异常终止，快速恢复过程将使用物理日志和逻辑日志将数据库服务器恢复到一致性状态。快速恢复过程分为两个阶段：物理恢复和逻辑恢复。</code></p>
-<p><strong>Fast Physical Recovery</strong></p>
-<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505051114478.png" alt="image-20250505111447340"></p>
-<p>During the first stage of fast recovery, called <em>physical recovery</em>, all the before images in the physical log are copied to their proper addresses on disk. We overwrite those pages with their before images for a good reason. During normal operation, page cleaner threads are constantly writing dirty pages out from shared memory to the AIO queue (which gets flushed to disk by the AIO VP or by the <strong>kaio</strong> thread). If we are to reproduce the conditions that existed immediately after the last checkpoint, we must ensure that any pages modified and flushed since that checkpoint are replaced with their original images.</p>
-<p><code>在快速恢复的第一阶段（称为物理恢复）中，物理日志中的所有前映像都会被复制到磁盘上的正确地址。我们用前映像覆盖这些页面是有原因的。在正常运行期间，页面清理线程会不断将脏页从共享内存写入 AIO 队列（该队列由 AIO VP 或 kaio 线程刷新到磁盘）。如果我们要重现上一个检查点之后的情况，必须确保自该检查点以来修改和刷新的所有页面都被替换为其原始映像。</code></p>
-<p>Once this reshelving is done, the physical log is logically emptied (the physical log begin pointer is set to the current pointer).</p>
-<p><code>一旦完成重新搁置，物理日志在逻辑上就被清空（物理日志开始指针设置为当前指针）。</code></p>
-<p><strong>Fast Logical Recovery</strong></p>
-<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505051119920.png" alt="image-20250505111924827"></p>
-<p>The second stage of fast recovery, <em>logical recovery</em>, remodifies the pages restored by physical recovery. Beginning at the last checkpoint record in the logical logs, the <strong>oninit</strong> process rolls forward from there, bringing the system to exactly the state it was in at the time of the crash. The loose ends are tied up after the last log record is applied; <strong>oninit</strong> rolls back any uncommitted transactions, records the rollback by adding CLRs (compensation log records) in the log, deletes temporary tables, performs index builds deferred during the rollforward as an optimization, and brings the system into Quiescent mode.</p>
-<p><code>快速恢复的第二阶段是逻辑恢复，它会重新修改物理恢复所恢复的页面。oninit 进程从逻辑日志中最后一个检查点记录开始前滚，使系统恢复到崩溃时的状态。应用最后一个日志记录后，所有未完成的操作都已完成；oninit 会回滚所有未提交的事务，通过在日志中添加 CLR（补偿日志记录）来记录回滚，删除临时表，执行在前滚过程中作为优化而推迟的索引构建，并将系统置于静默模式。</code></p>
-<p><code>紫本200页Quiescent mode翻译成静默模式</code></p>
-<p>Then the whole cycle begins again. Attached sessions are free to modify shared memory, and the pages on disk become more and more out of date in relation to the buffer pool. If our database server came down unexpectedly at this point, all modified buffers would vanish. We would have to get those pages back somehow. Fast recovery manages to do just that.</p>
-<p><code>然后整个循环再次开始。连接的会话可以自由地修改共享内存，磁盘上的页面相对于缓冲池来说会变得越来越过时。如果我们的数据库服务器此时意外宕机，所有修改过的缓冲区都会消失。我们必须以某种方式恢复这些页面。快速恢复正是这样做的。</code></p>
-<p>After completion of the checkpoint, all pages in the buffer cache are in sync with the pages on disk.</p>
-<p><code>检查点完成后，缓冲区缓存中的所有页面都与磁盘上的页面同步。</code></p>
-<p><strong>Fast Recovery and Checkpoint Messages</strong></p>
-<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202505051132861.png" alt="image-20250505113201794"></p>
-<p>Above is an example of messages written to the message log during fast recovery. The message log shows the page at which physical recovery began (in the form chunk_number*:<em>page_offset</em>) and how many before-image pages were examined and restored. It also shows the number of transactions that were committed or rolled back during logical recovery. Finally, the message log shows checkpoint information, including where the checkpoint record was written in the logical logs.</p>
-<p><code>以上是快速恢复期间写入消息日志的消息示例。消息日志显示了物理恢复开始的页面（格式为“chunk_number:page_offset”）以及检查和恢复了多少个前映像页面。它还显示了逻辑恢复期间提交或回滚的事务数量。最后，消息日志显示了检查点信息，包括检查点记录在逻辑日志中的写入位置。</code></p>
-<p><code>紫本202页基本是快速恢复这块的翻译，而且有例子</code></p>
  
       <!-- reward -->
       
