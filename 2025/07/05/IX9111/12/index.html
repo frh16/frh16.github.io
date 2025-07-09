@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+
+
+<html lang="en">
+  
+
+    <head>
+      <meta charset="utf-8" />
+        
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>IX9111 - Unit 12.Physical and Logical Logs |  blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    </head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-IX9111/12"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  IX9111 - Unit 12.Physical and Logical Logs
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/07/05/IX9111/12/" class="article-date">
+  <time datetime="2025-07-05T08:16:16.000Z" itemprop="datePublished">2025-07-05</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/IX9111/">IX9111</a>
+  </div>
+ 
+    </div>
+      
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p><strong>Physical Log Structure</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202507051618788.png" alt="image-20250705161804668"></p>
+<p><strong>Notes:</strong></p>
+<p>The physical log is a circular file, meaning that when the database server writes to the last physical page of the log, it continues writing from the first page. Although the physical beginning and ending of the log could serve as physical boundaries, they are irrelevant to the way the log functions. What matters are two positions within the log: the current position, and the position that <em>was</em> current just after the last checkpoint. If fast recovery becomes necessary due to a crash, the consistency of the data depends on the string of pages between these two positions in the physical log.</p>
+<p><code>物理日志是一个循环文件，这意味着当 database server 写入日志的最后一个物理页时，它会从第一个页开始继续写入。尽管日志的物理起始位置和结束位置可被视为物理边界，但它们与日志的运作方式并无关联。真正重要的是日志中的两个位置：当前位置，以及上一次检查点（checkpoint）刚结束后的“当时”的当前位置。如果由于系统崩溃而需要进行快速恢复，那么数据的一致性就取决于物理日志中这两个位置之间的那串页面。</code></p>
+<blockquote>
+<p>irrelevant 英[ɪˈreləvənt] 美[ɪˈreləvənt]<br>adj. 无关的;不相关的;无关紧要的;</p>
+</blockquote>
+<p><strong>New Life at Each Checkpoint</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202507051624624.png" alt="image-20250705162406553"></p>
+<p><strong>Notes:</strong></p>
+<p>Immediately following a checkpoint, all pages within the physical log are free to be reused. However, our current position within the log has not been reset by the checkpoint. It has simply been recorded as the <em>physical log position at last checkpoint</em>. When the time comes to write the next page into the log, we simply start where we left off. </p>
+<p><code>在检查点（checkpoint）操作刚完成后，物理日志中的所有页面均可被重新使用。然而，日志中的当前位置并不会因检查点操作而被重置，它只是被记录为“上一次检查点时的物理日志位置”。待到需要将下一页写入日志时，我们只需从上次中断的位置继续写入即可。</code></p>
+<p>As the physical log thread starts to write pages into the log, it moves forward from this <em>position at last checkpoint</em>. The <em>head</em> of our stream of used pages moves steadily forward through the file each time the physical log buffer is flushed, while the <em>tail</em> remains fixed.</p>
+<p><code>当物理日志线程开始将页面写入日志时，它会从“上一次检查点时的位置”开始向前推进。每当物理日志缓冲区被 flush 时，我们已使用页面流中的头部（即最新写入的位置）会在日志文件中稳步向前移动，而尾部（即上一次检查点时的位置）则保持固定不变。</code></p>
+<p>Informix Dynamic Server makes every effort to prevent the head from wrapping to the start of the file and catching the tail. It would spell trouble for fast recovery if pages written since the last checkpoint were overwritten before the physical log could be cleared. Every time a process writes a page to the physical log buffer, it calculates how much space has been used in the physical log as a whole. If the file is 75% full, the process immediately requests a checkpoint, which serves to <em>flush</em> or logically empty the physical log.</p>
+<p><code>IDS 会竭尽全力防止日志头部回卷到文件起始位置并追上尾部。如果在物理日志被清空之前，自上次检查点以来写入的页面就被覆盖，那么快速恢复将会陷入困境。每当有进程向物理日志缓冲区写入页面时，它都会计算整个物理日志中已使用的空间量。如果文件已使用75%，该进程会立即请求执行检查点操作，此操作旨在 flush 或从逻辑上清空物理日志。</code></p>
+<p><strong>Physical Log Flushing</strong></p>
+<p>No extra I&#x2F;O is necessary to logically empty the physical log:</p>
+<p><code>无需额外的输入/输出（I/O）操作即可从逻辑上清空物理日志。</code></p>
+<p>Step 1: Write a new checkpoint structure to the root reserved pages (a step that is taken anyway).Recall that an element of the checkpoint structure contains the physical log position at checkpoint. With this write to the checkpoint structure, the database server sets the new starting position (or tail) to the current position in the log.</p>
+<p><code>将新的检查点结构写入root保留页（这一步骤无论如何都会执行）。需注意，检查点结构的元素之一包含检查点发生时的物理日志位置。通过向检查点结构写入这一信息，数据库服务器将日志的新起始位置（或“尾部”）设置为当前日志位置。</code></p>
+<p>Step 2: Set the shared-memory variable representing the number of used physical log pages to 0.</p>
+<p><code>将共享内存中表示已用物理日志页数量的变量设置为 0。</code></p>
+<p><strong>Notes:</strong></p>
+<p>Minimal work is involved with flushing the physical log. In fact, it is really just a side-effect of a late step in the checkpoint algorithm: writing a new checkpoint structure to the checkpoint&#x2F;logical log reserved page. Since one of the elements in the checkpoint structure stores the <em>physical log position at checkpoint</em>, writing a new structure to the reserved pages effectively snips off the tail of the page stream. Both the head and the tail are set to the current position within the file. The final step is to zero out the count of used physical log pages, a value stored in shared memory that is used to calculate the percentage of free log space.</p>
+<p><code>刷新（Flush）物理日志所需的工作量极小。实际上，这仅是检查点算法后期步骤的一个附带效果：即向检查点/逻辑日志的保留页写入新的检查点结构。由于检查点结构中有一个元素会存储检查点发生时的物理日志位置，因此向保留页写入新结构会逻辑上截断已用页面流的尾部。此时，日志的头部和尾部均被设置为文件中的当前位置。最后一步是将共享内存中存储的已用物理日志页计数归零，该值用于计算日志空闲空间的百分比。</code></p>
+<p><strong>Physical Log Reduction</strong></p>
+<p> Uninitialized pages (pages with an invalid address) are no longer physically logged</p>
+<p><code>未初始化的页（地址无效的页）不再被物理日志记录。</code></p>
+<p> Implications – more physical logging might be performed during rollforward than was done during normal processing</p>
+<p><code>影响——在向前恢复（重做日志）过程中，执行的物理日志记录量可能比正常处理期间更多。</code></p>
+<p><strong>Notes:</strong></p>
+<p>Because the speed with which the physical log fills has an impact on checkpoint frequency, </p>
+<p>an effort has been made to limit physical logging to the minimum required for recovering </p>
+<p>data consistency.</p>
+<p><strong>Do not log garbage</strong></p>
+<p>Perhaps the easiest example of physical log reduction, is the case of uninitialized pages. When a page is first used, it usually begins as a random stream of bytes over which the database server page header and <strong>slot</strong> table structures must be written before the data row or index item. This is the process of page initialization, which is different from allocation in that allocation simply reserves the page(s) for later use. Technically, the page is modified during this initialization, but physically logging a useless before image makes no sense.</p>
+<p><code>物理日志减少的最典型案例，莫过于未初始化页的处理。当首次使用一个页时，其内容通常是一串随机字节，server 需先在此之上写入 page header 和 slot 表结构，之后才能存储数据行或索引项。这一过程称为页初始化（Page Initialization），它与页分配（Allocation）不同——分配仅是为后续使用预留页空间，而初始化会实际修改页内容。从技术角度看，初始化确实修改了页，但记录无意义的“修改前镜像（before-image）”到物理日志毫无价值。</code></p>
+<p>The first rule of physical log reduction is this: uninitialized pages are not physically logged. A page is judged to be uninitialized if its address does not match its physical location.</p>
+<p><code>物理日志减少的首要原则是：未初始化的页不会被记录到物理日志中。若一个页的逻辑地址与其物理存储位置不匹配，则判定该页为未初始化状态。</code></p>
+<p><strong>Restartable Fast Recovery</strong></p>
+<p> To avoid physical log overflow, write physical log pages to the file system during fast recovery</p>
+<p><code>为避免物理日志溢出，在快速恢复过程中需将物理日志页实时写入文件系统。</code></p>
+<p> If a crash occurs during recovery, fast recovery can resume with the physical restore of pages from the physical log file in the file system</p>
+<p><code>若在恢复过程中发生崩溃，系统可通过从文件系统中的物理日志文件中还原数据页，快速重启恢复流程。</code></p>
+<p> Meanwhile, new physical log pages continue to be written to the file system</p>
+<p><code>与此同时，新的物理日志页仍会持续写入文件系统。</code></p>
+<p> At post-recovery checkpoint, physical logging resumes within the database server</p>
+<p><code>在恢复后检查点（Post-Recovery Checkpoint）阶段，database server 内重新启用物理日志记录功能。</code></p>
+<p> Set the PLOG_OVERFLOW_PATH configuration parameter to the file system path to use during physical recovery</p>
+<p><code>将 PLOG_OVERFLOW_PATH 配置参数设置为物理恢复期间使用的文件系统路径。</code></p>
+<p><strong>Notes:</strong></p>
+<p>To avoid potential problems during fast recovery, new physical log pages are written to a file in the file system instead of to the physical log in the database server. If a crash occurs during recovery, physical recovery can resume from the position in the physical log at last checkpoint, and continue with the pages that were written to the file system. Meanwhile, the database server continues physical logging to the file system.</p>
+<p><code>为避免快速恢复期间可能出现的问题，新的物理日志页将写入文件系统中的独立文件，而非 server 内置的物理日志。若恢复过程中发生崩溃，系统可从上一个检查点记录的物理日志位置重新启动物理恢复，并继续处理已写入文件系统的日志页。与此同时，server 仍持续向文件系统写入物理日志。</code></p>
+<p>At the completion of fast recovery, a checkpoint is requested, the physical log position is reset, the physical log file in the file system is removed, and logging to the physical log in the database server can resume.</p>
+<p><code>快速恢复完成后，系统会触发检查点操作，重置物理日志位置，删除文件系统中的物理日志文件，并恢复向 server 内置的物理日志写入日志。</code></p>
+<p><strong>PLOG_OVERFLOW_PATH</strong></p>
+<p>The name of the physical log in the file system is <strong>plog_extend.server_num</strong>. By default, this file is located in <strong>$INFORMIXDIR&#x2F;tmp</strong>, but you can specify a location for this file by setting the PLOG_OVERFLOW_PATH configuration parameter. For example:</p>
+<p><code>文件系统中物理日志的文件名为 plog_extend.server_num。默认情况下，该文件位于 $INFORMIXDIR/tmp 目录下，但您可以通过设置 PLOG_OVERFLOW_PATH 配置参数来指定该文件的存储路径。例如：</code></p>
+<p>​		PLOG_OVERFLOW_PATH &#x2F;home&#x2F;informix&#x2F;temp</p>
+<p><strong>A Side-Effect of Unbuffered Logging</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202507051828508.png" alt="image-20250705182810410"></p>
+<p><strong>Notes:</strong></p>
+<p>A database created with logging uses either buffered logging or unbuffered logging.</p>
+<p><code>启用日志记录功能的数据库可采用缓冲 Buffered Logging 或 Unbuffered Logging 两种模式。</code></p>
+<p> <strong>•</strong> In a database created with unbuffered logging, the logical log buffer is flushed when a transaction on the database is committed.This means that logical log pages are less full when they are written to a logical log file.</p>
+<p><code>在启用 Unbuffered Logging 的数据库中，当事务提交时，逻辑日志缓冲区（Logical Log Buffer）中的内容会立即被刷盘（Flushed）到逻辑日志文件。这意味着写入逻辑日志文件时，日志页的填充程度通常较低（即存在较多未使用的空间）。</code></p>
+<p> <strong>•</strong> In a database created with buffered logging, the current logical log buffer is flushed only when the log buffer becomes full. Logical log buffer pages are mostly full when they are written to the logical log files.</p>
+<p><code>在启用 Buffered Logging 的数据库中，当前逻辑日志缓冲区（Logical Log Buffer）仅在缓冲区满时才会被 flush。写入逻辑日志文件时，日志缓冲区的页（Pages）通常处于接近满载的状态。</code></p>
+<p>As illustrated above, one side effect of unbuffered logging, especially in OLTP environments, is that the logging process produces relatively <em>light</em> logical logs. When buffered logging is used, log records are packed more efficiently into each logical log, reducing the frequency of log backups and the likelihood of long transactions as well.</p>
+<p><code>如上所述，非缓冲日志记录（尤其在OLTP环境中）的一个副作用是，日志记录过程会生成内容相对“稀疏”（数据量较少）的逻辑日志。而采用缓冲日志记录时，日志记录能更高效地填充到每个逻辑日志页中，从而降低日志备份的频率，并减少长事务发生的可能性。</code></p>
+<blockquote>
+<p>likelihood 可能性 英[ˈlaɪklihʊd] 美[ˈlaɪklihʊd]</p>
+</blockquote>
+<p><strong>Long Transactions</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202507051835518.png" alt="image-20250705183506446"></p>
+<p><strong>Notes:</strong></p>
+<p>A database server temporarily grinds to a halt when all logical logs become full, which is why it is important to keep one or more logs free at all times by backing them up promptly. It is by no means a fatal mistake to neglect the logs and let the system freeze; the logs can be backed up any time and the system can be back to normal. There is one scenario, however, in which even a continuous log backup cannot prevent the logs from filling in such a way that the system will permanently halt, and must be restored from an archive. </p>
+<p><code>当所有逻辑日志文件被写满时，server 会暂时陷入停滞（完全无法响应），因此必须通过及时备份日志来始终保留一个或多个空闲日志文件。尽管因疏忽未备份日志导致系统冻结并非致命错误——日志可随时备份，系统也能恢复正常——但在特定场景下，即使持续进行日志备份，仍无法避免日志被完全填满，最终导致系统永久性停机，必须通过归档备份进行恢复。</code></p>
+<blockquote>
+<p>promptly 英[ˈprɒmptli] 美[ˈprɑːmptli]<br>adv.立即;迅速;马上;及时地;准时地;</p>
+<p>neglect<br>英[nɪˈɡlekt] 美[nɪˈɡlekt]<br>v.忽视;忽略;疏忽;疏于照顾;疏漏;不予重视;未予看管;<br>n.忽略;忽视;未被重视;</p>
+<p>halt<br>英[hɔːlt] 美[hɔːlt]<br>n.暂停，停止，终止，阻止;暂停前进，停住;&lt;古&gt;跛，瘸;小火车站（只有站台）;（口令）站住！立定！;<br>v.使停止前进，使停止，使终止;停止行进，停止，终止;踌躇，犹豫;蹒跚;（诗的格律等）有缺陷; &lt;古&gt;跛行;（论点等）不合逻辑;<br>adj.&lt;古&gt;跛的，瘸的;</p>
+</blockquote>
+<p>The typical long transaction is not that scenario. In fact, the <em>vast majority</em> of long transactions are successfully rolled back well before they cause a problem. The scenario involves that one long transaction in perhaps a thousand, on a system that is not properly configured to avoid them.</p>
+<p><code>典型的长事务（Long Transaction）并非上述危险场景。事实上，绝大多数长事务都会在引发问题前被成功回滚。真正需要警惕的场景是：在未正确配置以规避此类问题的系统中，可能每千次事务中才会出现一次的极端长事务。</code></p>
+<p><strong>What are long transactions?</strong></p>
+<p>An everyday transaction becomes a <em>long transaction</em> when the percentage of log space used by the transaction reaches a configured high-water-mark value.</p>
+<p><code>当某一日常事务占用的日志空间比例达到系统预设的高水位阈值（High-Water Mark）时，该事务即被视为长事务（Long Transaction）。</code></p>
+<p><strong>Examples</strong></p>
+<p>Here are two specific examples of long transactions. Assume a database server has 10 logs, as pictured in the slide above, and that the long transaction high water mark, LTXHWM, is set to 80.</p>
+<p><code>以下是两个长事务（Long Transaction）的具体案例。假设某数据库服务器配置了10个日志文件（如上图幻灯片所示），且长事务高水位阈值（Long Transaction High-Water Mark，简称 LTXHWM）设置为 80（即日志空间使用率达到80%时触发长事务判定）。</code></p>
+<p>The system’s solitary user begins a transaction near the end of log file 2, and starts inserting thousands of rows into a table. The records from this transaction fill the latter portion of log file 2, then log file 3, and continue through log file 8. Each log is backed up to tape immediately after it fills.</p>
+<p><code>系统的唯一用户在一个事务开始时，日志文件2已接近写满。该用户随即启动了一个向表中插入数千行数据的事务。此事务所生成的日志记录依次填满了日志文件2的剩余空间、整个日志文件3，并持续写入直至占满日志文件8。每个日志文件在写满后立即被备份到磁带。</code></p>
+<p>As the transaction crosses into log file 9, only three log files remain available to it: 9, 10 and 1. Log file 2 is not available. Even though the log records it contains are backed up, they cannot be overwritten; they would have to be read and undone if the transaction were ever to roll back. Informix Dynamic Server cannot free a portion of a log file, so until this transaction either commits or rolls back completely, the whole of log file 2 is out of the picture. Summing up, 30% of the total log space—three available log files out of ten—remains available to this transaction.</p>
+<p><code>当该事务延伸至日志文件9时，仅剩3个日志文件可供其使用：日志文件9、10和1。日志文件2已不可用。尽管其中包含的日志记录已备份至磁带，但这些记录无法被覆盖；若事务需要回滚，则必须读取并撤销这些记录。IDS 无法释放日志文件的局部空间，因此在该事务完全提交或回滚之前，整个日志文件2均不可用。综上，该事务仅能使用总日志空间的30%（即10个日志文件中的3个可用文件）。</code></p>
+<p>The transaction fills log file 9 and begins writing to log file 10. More than 80% of our total log space is now unavailable to the transaction. Having crossed its imaginary <em>high water</em> <em>mark</em>, the transaction is deemed long and forced to begin rolling back. Because undoing log records produces additional log records, the transaction continues writing to the log files. </p>
+<p><code>该事务填满日志文件9后，开始向日志文件10写入数据。此时，事务可用的总日志空间已不足20%（超过80%的空间被占用且不可用）。当事务越过预设的虚拟高水位线（high water mark）后，系统判定其为长事务，并强制其开始回滚。由于撤销日志记录的操作本身会产生新的日志记录，该事务仍需持续向日志文件写入数据。</code></p>
+<p>As we stated earlier, most of the time this scenario ends with a successful rollback, even in systems with a high water mark configured as poorly as ours. But if all the records necessary to roll back the transaction cannot be written to the log files before the available space is consumed, the logs are not only full, but none of them, no matter how many times they are backed up, can allow themselves to be overwritten. In this case, the database server is truly stuck. Prior to Version 9.3 of Informix Dynamic Server, you cannot simply add another log file to give the rollback some breathing space, because the actions involved with adding a logical log to an Informix Dynamic Server system are, themselves, logged.</p>
+<p><code>如前所述，即使在像我们这样高水位线（HWM）配置不合理的情况下，大多数情况下此类场景仍能以成功回滚告终。然而，若在可用日志空间耗尽前，系统无法将回滚所需的所有日志记录写入文件，则日志不仅会完全写满，而且无论已备份多少次，所有日志文件均无法被覆盖。此时，数据库服务器将彻底陷入僵局。在IDS 9.3版本之前，无法通过简单添加新日志文件为回滚操作争取空间，因为向系统添加逻辑日志的操作本身也会被记录到日志中，形成死循环。</code></p>
+<p><strong>Another example</strong></p>
+<p>In a system with the same configuration, a transaction begins in the same spot near the end of log file 2. It writes a BEGIN record and one INSERT record. The user responsible for the transaction then heads off to lunch without committing the work. Meanwhile, other users in the system continue writing to the logs, performing many average-size operations.</p>
+<p><code>在配置相同的系统中，一个事务在日志文件2的末尾附近启动。该事务写入一条</code>BEGIN<code>记录和一条</code>INSERT<code>记录后，负责此事务的用户便丢下工作去吃午饭，未提交事务。与此同时，系统中的其他用户持续向日志文件写入数据，执行大量普通规模的操作。</code></p>
+<p>Despite the fact that this transaction involves only two log records, it is deemed long as soon as log file 10 becomes current, and the server is forced to roll back.</p>
+<p><code>尽管该事务仅涉及两条日志记录（一条BEGIN和一条INSERT），但一旦日志文件10成为当前活动文件，系统便会立即将其判定为长事务，并强制执行回滚操作。</code></p>
+<p>In other words, the amount of log space consumed by a particular transaction is not part of the equation. A transaction is deemed long the minute the amount of log space available to it crosses below a threshold defined by LTXHWM.</p>
+<p><code>换句话说，特定事务消耗的日志空间量并不纳入判定标准。一旦该事务可用的日志空间低于由LTXHWM参数定义的阈值，系统会立即将其判定为长事务。</code></p>
+<p><strong>Avoiding Fatal Long Transactions</strong></p>
+<p>To avoid a fatal long transaction situation:</p>
+<p>– Increase your logical log space</p>
+<p>– Enable dynamic logging</p>
+<p><strong>Notes:</strong></p>
+<p>If you allocate plenty of logical log space and enable the dynamic logging feature of IDS, you should never have a fatal long transaction problem on your Informix Dynamic Server system. </p>
+<p><code>如果为 IDS 分配充足的逻辑日志空间并启用 IDS 的动态日志功能，则系统绝不会出现致命的长事务问题。</code></p>
+<p>You can also avoid a fatal long transaction situation by enabling the dynamic logging feature. This is covered on the next page.</p>
+<p><code>您还可以通过启用动态日志功能来避免致命的长事务问题，相关内容将在下一页介绍。</code></p>
+<p><strong>Dynamic Allocation of Logs</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202507051857540.png" alt="image-20250705185733456"></p>
+<p><strong>Notes:</strong></p>
+<p>To avoid problems that could occur as a result of long transactions, you can take advantage of an IDS feature that allows logical logs to be added dynamically if a long transaction situation is encountered. You can configure your server to automatically insert one or more logical log files after the current log file when the next logical log in sequence contains a transaction that is still open. The database server determines the size and location (dbspace) of the logical log files added. </p>
+<p><code>为避免因长事务引发的问题，您可利用 IDS 的一项功能：当检测到长事务时，系统会自动动态添加逻辑日志文件。您可配置 server 在以下条件满足时，在当前日志文件之后自动插入一个或多个新的逻辑日志文件：当后续待切换的逻辑日志中包含仍处于活动状态的事务时。新增逻辑日志文件的大小和存储位置（dbspace）将由 server 自动确定。</code></p>
+<p>You can also configure the server to allow you to manually add logical log files. In this case, you can specify the size and location of the log files when you add them.</p>
+<p><code>您还可以将服务器配置为允许手动添加逻辑日志文件。在此情况下，您可在添加时自行指定日志文件的大小和存储位置。</code></p>
+<p>To enable dynamic allocation of logical logs, set the DYNAMIC_LOGS configuration parameter to one of these values:</p>
+<p><code>要启用逻辑日志的动态分配功能，需将 DYNAMIC_LOGS 配置参数设置为以下任一值：</code></p>
+<p><strong>2</strong> Automatically allocate a new logical log file and set off an alarm. This is the default value and is the recommended setting. High-water marks can be set higher because additional log files can be added if a long-transaction rollback causes logs to fill.</p>
+<p><code>自动分配新的逻辑日志文件并触发告警。这是默认配置值，也是推荐设置。由于可在长事务回滚导致日志空间耗尽时自动添加额外日志文件，因此可将日志高水位标记（HWM）设置为更高值。</code></p>
+<p><strong>1</strong> Pause to allow manual addition of new logical log files and set off an alarm. Use this option if you do not want the database server to choose the size and location of the new log files.</p>
+<p><code>暂停操作以允许手动添加新的逻辑日志文件，并触发告警。当您不希望数据库服务器自动决定新日志文件的大小和存储位置时，请使用此选项。</code></p>
+<p><strong>0</strong> Do not allocate a new logical log file, but issue a warning message.</p>
+<p><code>不分配新的逻辑日志文件，仅发出警告消息。</code></p>
+<p><strong>Other Logging and Recovery Features</strong></p>
+<p>You may be able to improve checkpoint, logging, and recovery performance by setting the following configuration parameters:</p>
+<p><code>通过设置以下配置参数，你或许能够提升检查点（checkpoint）、日志记录（logging）和恢复（recovery）的性能。</code></p>
+<p>– Automatic checkpoints: AUTO_CKPTS</p>
+<p>– Automatic LRU tuning: AUTO_LRU_TUNING</p>
+<p>– Recovery time objective (RTO): RTO_SERVER_RESTART</p>
+<p><strong>Notes:</strong></p>
+<p>Informix Dynamic Server offers other features that may be helpful in optimizing checkpoint duration, checkpoint frequency, and fast recovery time.</p>
+<p><code>IDS 提供了其他一些功能，这些功能可能有助于优化检查点持续时间、检查点频率以及快速恢复时间。</code></p>
+<p> <strong>•</strong> Enable the automatic checkpoint feature by setting the AUTO_CKPTS parameter to 1. This enables the database server to monitor checkpoint activity and the state of the logical and physical logs. When the server determines that a checkpoint must occur, it automatically requests the checkpoint to avoid blocking of server activity. This feature is enabled by default.</p>
+<p><code>将 AUTO_CKPTS 参数设置为 1，以启用自动检查点功能。这可使 server 监控检查点活动以及逻辑日志和物理日志的状态。当 server 判定必须执行检查点操作时，它会自动请求执行检查点，以避免阻塞服务器活动。此功能默认处于启用状态。</code></p>
+<p> <strong>•</strong> Enable automatic LRU tuning by setting the AUTO_LRU_TUNING parameter to 1. When auto LRU tuning is enabled, LRU flushing becomes more “aggressive” when certain events occur in the server.</p>
+<p><code>将 AUTO_LRU_TUNING 参数设置为 1，以启用自动 LRU 调优功能。启用自动 LRU 调优后，当服务器中发生特定事件时，LRU 刷新操作会变得更加“积极”。</code></p>
+<p>The database server automatically tunes LRU flushing whenever a page replacement occurs. After a checkpoint, if a page-replacement foreground write occurred during the previous checkpoint interval, the database server decreases the LRU settings by 5 percent and continues to increase the LRU flushing at each subsequent checkpoint until page-replacement foreground writes stop or until the <strong>lru_max_dirty</strong> for a given buffer pool falls below 10 percent. For example, if a page-replacement foreground write occurs and the BUFFERPOOL parameter settings for <strong>lru_min_dirty</strong> and <strong>lru_max_dirty</strong> are 80 and 90 percent, the database server adjusts these to 76 and 85.5 percent. This causes an increase in LRU flushing.</p>
+<p><code>每当发生页面置换时，server 会自动对 LRU 刷新操作进行调优。在检查点之后，如果上一个检查点间隔期间发生了因页面置换导致的前台写入操作，数据库服务器会将 LRU 设置降低 5%，并在后续每个检查点持续增强 LRU 刷新力度，直到页面置换导致的前台写入操作停止，或者直到给定缓冲池的 lru_max_dirty 值降至 10% 以下。例如，如果发生了因页面置换导致的前台写入操作，且 lru_min_dirty 和 lru_max_dirty 的 BUFFERPOOL 参数设置分别为 80% 和 90%，则数据库服务器会将这些值调整为 76% 和 85.5%。这会导致 LRU 刷新操作增加。</code></p>
+<p> <strong>•</strong> The RTO_SERVER_RESTART configuration parameter can be used to set a target time for fast recovery. Based on the parameter setting, the server monitors the workload and adjusts the frequency of checkpoints in order to meet the defined recovery time objective (RTO) policy. Every time the server goes through fast recovery, it is able to better predict what frequency will best meet the policy. The CKPTINTVL parameter is ignored if RTO_SERVER_RESTART is enabled.</p>
+<p><code>RTO_SERVER_RESTART 配置参数可用于设定快速恢复的目标时间。根据该参数的设置，server 会监控工作负载情况，并调整检查点的频率，以满足既定的恢复时间目标（RTO）策略要求。每次 server 执行快速恢复时，都能够更准确地预测何种频率最能契合该策略。若启用了 RTO_SERVER_RESTART 参数，则 CKPTINTVL 参数将被忽略。</code></p>
+<p><strong>What Goes Into a Logical Log</strong></p>
+<p> DDL statements (CREATE, DROP, ALTER)</p>
+<p> Index item additions&#x2F;deletions</p>
+<p> Home row additions&#x2F;deletions&#x2F;modifications</p>
+<p> Blobpage map structures</p>
+<p> Checkpoint records</p>
+<p> Space allocations (new chunks, extents, logical logs, etc.)</p>
+<p> CLRs (compensation log records)</p>
+<p><strong>Notes:</strong></p>
+<p>Log records are made as concise as possible. They are cryptic representations of actions within the RSAM layer that are not only complex, but proprietary. For these reasons, this course will not attempt to teach you the full meaning of log records at a binary level. It will, however, teach you enough to understand the output of Dynamic Server’s <strong>onlog</strong> utility. This is information that can be quite interesting and useful.</p>
+<p><code>日志记录会尽可能做到简洁。它们是对 RSAM 层内操作的晦涩表示，这些操作不仅复杂，而且属于专有技术。鉴于这些原因，本课程不会试图在二进制层面教授日志记录的全部含义。不过，本课程将传授足够的知识，使你能够理解 Dynamic Server 的 onlog 工具所输出的信息。这些信息相当有趣且实用。</code></p>
+<p><strong>What Does Not Go Into a Logical Log</strong></p>
+<p> SQL statements (log records are at a much lower level)</p>
+<p> Modifications to a temp table that is not logged</p>
+<p> Blobspace blobs (these are backed up with logical logs, but are kept separate from the log files)</p>
+<p> Entire pages (an after-image is just a row)</p>
+<p> DML statements that apply to a no-logging database</p>
+<p><strong>Notes:</strong></p>
+<p>A single logical log record does not necessarily correspond to a single SQL statement, but represents a subtask that is performed as a part of the execution of a statement. Above is a list of other events that occur on a database server that are not recorded in the logical log.</p>
+<p><code>单条逻辑日志记录并不一定对应单条 SQL 语句，而是代表作为语句执行部分所执行的一个子任务。上文列出了一些在 server 上发生但未记录在逻辑日志中的其他事件。</code></p>
+<p><strong>Note</strong></p>
+<p>Simple large objects (TEXT and BYTE data) can be stored within a dbspace partition or in a blobspace. Simple large objects stored in dbspace partitions are logged with their respective data row, while those stored in blobspaces are logged only when logical logs are backed up.</p>
+<p><code>简单大对象（TEXT 和 BYTE 数据类型）可存储在 dbspace partition，也可存储在二进制大对象空间（blobspace）中。存储在 dbspace partition 中的简单大对象会与其对应的数据行一同记录到日志中，而存储在二进制大对象空间中的简单大对象仅在备份逻辑日志时才会被记录到日志中。</code></p>
+<p>Smart LOs (BLOB and CLOB data) are stored in sbspaces, and logging mode for these objects is configurable. The metadata tables stored in sbspaces are always logged.</p>
+<p><code>智能大对象（BLOB 和 CLOB 数据）存储在智能大对象空间（sbspaces）中，且这些对象的日志记录模式是可配置的。存储在智能大对象空间中的元数据表始终会被记录到日志中。</code></p>
+<p><strong>Example of a Committed Transaction</strong></p>
+<p> At the SQL level:</p>
+<p>​		BEGIN WORK;</p>
+<p>​		DELETE FROM customer </p>
+<p>​		WHERE customer_num &#x3D; 110;</p>
+<p>​		COMMIT WORK;</p>
+<p> At the logical log level:</p>
+<p>​		BEGIN WORK</p>
+<p>​		HOME ROW DELETE</p>
+<p>​		DELETE INDEX ITEM (first index key)</p>
+<p>​		DELETE INDEX ITEM (second index key)</p>
+<p>​		COMMIT WORK</p>
+<p><strong>Notes:</strong></p>
+<p>The following information is recorded in the logical logs for the simple committed transaction shown in the slide above:</p>
+<p><code>对于上文幻灯片中所示的简单已提交事务，逻辑日志中会记录以下信息：</code></p>
+<p><strong>•</strong> BEGIN (begin the transaction)</p>
+<p>​		 <strong>-</strong> Record header (length, type, transaction ID, links to previous record in transaction)</p>
+<p>​		 <strong>-</strong> Date and time</p>
+<p>​		 <strong>-</strong> Process ID and user ID</p>
+<p> <strong>•</strong> HDELETE (delete a home row)</p>
+<p>​		 <strong>-</strong> Record header</p>
+<p>​		 <strong>-</strong> Partition number</p>
+<p>​		 <strong>-</strong> Rowid</p>
+<p>​		 <strong>-</strong> Deleted data</p>
+<p> <strong>•</strong> DELITEM #1 (delete index item)</p>
+<p>​		 <strong>-</strong> Record header</p>
+<p>​		 <strong>-</strong> Partition number</p>
+<p>​		 <strong>-</strong> Rowid</p>
+<p>​		 <strong>-</strong> Node number and key information</p>
+<p> <strong>•</strong> DELITEM #2 (same as above)</p>
+<p> <strong>•</strong> COMMIT (commit the transaction)</p>
+<p>​		 <strong>-</strong> Record header</p>
+<p>​		 <strong>-</strong> Date and time</p>
+<p><strong>Example of an Aborted Transaction</strong></p>
+<p> At the SQL level:</p>
+<p>​		BEGIN WORK;</p>
+<p>​		DELETE FROM customer WHERE customer_num &#x3D; 109;</p>
+<p>​		ROLLBACK WORK;</p>
+<p> At the logical log level:</p>
+<p>​		BEGIN WORK</p>
+<p>​		HOME ROW DELETE</p>
+<p>​		DELETE INDEX ITEM (first index key)</p>
+<p>​		DELETE INDEX ITEM (second index key)</p>
+<p>​		COMPENSATION LOG RECORD (for DELITEM on second index)</p>
+<p>​		COMPENSATION LOG RECORD (for DELITEM on first index)</p>
+<p>​		COMPENSATION LOG RECORD (for HDELETE)</p>
+<p>​		ROLLBACK COMPLETE</p>
+<p><strong>Notes:</strong></p>
+<p>The following information is recorded in the logical logs for the simple aborted transaction shown in the slide above:</p>
+<p><code>对于上文幻灯片中所示的简单中止（回滚）事务，逻辑日志中会记录以下信息：</code></p>
+<p><strong>•</strong> BEGIN (begin the transaction)</p>
+<p>​		 <strong>-</strong> Record header (length, type, transaction ID, links to previous record in transaction; none in this case)</p>
+<p>​		 <strong>-</strong> Date and time</p>
+<p>​		 <strong>-</strong> Process ID and user ID</p>
+<p> <strong>•</strong> HDELETE (delete a home row)</p>
+<p>​		 <strong>-</strong> Record header</p>
+<p>​		 <strong>-</strong> Partition number</p>
+<p>​		 <strong>-</strong> Rowid</p>
+<p>​		 <strong>-</strong> Deleted data</p>
+<p> <strong>•</strong> DELITEM #1 (delete index item)</p>
+<p>​		 <strong>-</strong> Record header</p>
+<p>​		 <strong>-</strong> Partition number</p>
+<p>​		 <strong>-</strong> Rowid</p>
+<p>​		 <strong>-</strong> Node number </p>
+<p>​		 <strong>-</strong> Key information</p>
+<p> <strong>•</strong> DELITEM #2 (delete index item)</p>
+<p>​		 <strong>-</strong> Same as above</p>
+<p> <strong>•</strong> CLR (Compensation Log Record for DELITEM #2)</p>
+<pre><code>     **-** Record header (length, type, transaction ID, links to second DELITEM record)
+</code></pre>
+<p> <strong>•</strong> CLR (Compensation Log Record for DELITEM #1)</p>
+<p>​		 <strong>-</strong> Record header (length, type, transaction ID, links to first DELITEM record)</p>
+<p> <strong>•</strong> CLR (Compensation Log Record for HDELETE)</p>
+<pre><code>     **-** Record header (length, type, transaction ID, links to HDELETE record)
+</code></pre>
+<p> <strong>•</strong> ROLLBACK</p>
+<p>​		 <strong>-</strong> Record header (length, type, transaction ID, links to BEGIN record)</p>
+<p>​		 <strong>-</strong> Date and time</p>
+<p><strong>The onlog Utility</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202507082218490.png" alt="image-20250708221759383"></p>
+<p><strong>Notes:</strong></p>
+<p>The <strong>onlog</strong> utility is used to examine the contents of a logical log that was created using <strong>ontape</strong>. <strong>onlog</strong> can read a logical log file written to disk, or a log backup written to tape. As it reads the entries in the log, it prints out a report listing each entry.</p>
+<p><code>onlog 工具用于检查通过 ontape 创建的逻辑日志的内容。onlog 能够读取写入磁盘的逻辑日志文件，或读取写入磁带的日志备份。在读取日志条目时，它会打印出一份报告，逐条列出所有条目。</code></p>
+<p><strong>onlog</strong> output is most useful in debugging situations, for example, when you want to track a specific transaction to see what changes have been made to a specific tablespace, or to track what activity a particular user has performed.</p>
+<p><code>onlog 的输出结果在调试场景中极为实用，例如，当您想要追踪某笔特定事务，查看其对特定表空间进行了哪些更改时，或者想要追踪某个特定用户执行了哪些操作时。</code></p>
+<p>If you use the <strong>onbar</strong> command to back up logs, you can view log contents using <strong>onbar -P</strong>.</p>
+<p><code>如果您使用 onbar 命令来备份日志，则可以使用 onbar -P 来查看日志内容。</code></p>
+<p><strong>Warning</strong></p>
+<p><em>Any time</em> <strong>onlog</strong> <em>is run against a logical log on disk, it acquires a latch to prevent anyone</em> <em>else from reading from or writing to the logical log file. This affects all logs and not just the</em> <em>current log.</em></p>
+<p><code>无论何时，当 onlog 针对磁盘上的逻辑日志运行时，它都会获取一个锁（latch），以防止其他任何进程从该逻辑日志文件读取数据或向其写入数据。这一操作会影响所有日志，而不仅仅是当前日志。</code></p>
+<p><strong>Log Record Read Filters</strong></p>
+<p><strong>-b</strong> Directs <strong>onlog</strong> to display blobspace blobpages stored on the logical log backup tape</p>
+<p><code>指示 onlog 显示存储在逻辑日志备份磁带上的二进制大对象空间（blobspace）的二进制大对象页（blobpages）</code></p>
+<p><strong>-d device</strong> Names the path name of the tape device where the logical log backup tape is mounted</p>
+<p><code>指定已挂载逻辑日志备份磁带的磁带设备的路径名称</code></p>
+<p><strong>-n logid</strong> Directs <strong>onlog</strong> to read only the logical log records named in the specified log</p>
+<p><code>指示 onlog 仅读取指定日志中列出的逻辑日志记录</code></p>
+<p><strong>Notes:</strong></p>
+<p>You direct <strong>onlog</strong> to read the following portions of the logical log as it searches for records to include in the output display:</p>
+<p><code>你指示 onlog 在搜索要包含在输出显示中的记录时，读取逻辑日志的以下部分：</code></p>
+<p> <strong>•</strong> The <strong>-b</strong> option displays blobspace blobpages stored on the logical log backup tape as part of blobspace logging.</p>
+<p><code>-b 选项会将作为 blobspace 日志记录一部分而存储在逻辑日志备份磁带上的 blobspace blobpages 显示出来。</code></p>
+<p> <strong>•</strong> When the <strong>-d</strong> option is used, it specifies the pathname of the tape device where the logical log backup tape is mounted. If you do not use the <strong>-d</strong> option, <strong>onlog</strong> reads the logical log files stored on disk. </p>
+<p><code>当使用 -d 选项时，它用于指定已挂载逻辑日志备份磁带的磁带设备的路径名。如果未使用 -d 选项，onlog 将读取存储在磁盘上的逻辑日志文件。</code></p>
+<p> <strong>•</strong> The <strong>-n</strong> option directs <strong>onlog</strong> to read the logical log records in the specified log only. The <em>logid</em> can apply to either a log that has been backed up to tape, or a log currently on disk. When a log from disk is read, read and write access to that log is denied to other users. It is recommended that you do not read the log on disk currently receiving transactions; it could hold up any user processes that need to write to that log.</p>
+<p><code>-n 选项指示 onlog 仅读取指定日志中的逻辑日志记录。该 logid 既可适用于已备份到磁带的日志，也可适用于当前存储在磁盘上的日志。当读取磁盘上的日志时，其他用户将被禁止对该日志进行读写访问。建议不要读取当前正在接收事务处理的磁盘日志；因为这可能会阻塞所有需要向该日志写入数据的用户进程。</code></p>
+<p><strong>Log Record Display Filters</strong></p>
+<p><strong>-l</strong>    Directs <strong>onlog</strong> to display a long listing of the logical log record</p>
+<p><code>指示 onlog 显示逻辑日志记录的详细长列表</code></p>
+<p><strong>-t tblspace</strong>    Directs <strong>onlog</strong> to display only records associated with the specified tblspace</p>
+<p><code>指示 onlog 仅显示与指定表空间（tblspace）相关联的记录</code></p>
+<p><strong>-u userid</strong>    Directs <strong>onlog</strong> to display only records associated with activity initiated by the specified user</p>
+<p><code>指示 onlog 仅显示与指定用户发起的活动相关联的记录</code></p>
+<p><strong>-x xactionnum</strong>    Directs <strong>onlog</strong> to display only records associated with the specified transaction</p>
+<p><code>指示 onlog 仅显示与指定事务相关联的记录</code></p>
+<p><strong>-n logid</strong>    Directs <strong>onlog</strong> to not print the column headers</p>
+<p><code>指示 onlog 不打印列标题</code></p>
+<p><strong>Notes:</strong></p>
+<p> <strong>•</strong> When the <strong>-l</strong> option is used, <strong>onlog</strong> prints any record images associated with the log record. The record is printed in ASCII and hexadecimal format.</p>
+<p><code>当使用 -l 选项时，onlog 会打印出与日志记录相关联的任何记录映像（即记录内容）。该记录会以 ASCII 格式和十六进制格式同时打印出来。</code></p>
+<p> <strong>•</strong> The <strong>-t</strong> option is used to specify the tblspace number in either hexadecimal or decimal format. </p>
+<p><code>-t 选项用于以十六进制或十进制格式指定表空间（tblspace）编号。</code></p>
+<p> <strong>•</strong> Use the <strong>-u</strong> option to specify the <em>userid</em> (UNIX login ID) of the user.</p>
+<p><code>使用 -u 选项来指定用户的用户ID（即UNIX登录ID）。</code></p>
+<p> <strong>•</strong> The <strong>-x</strong> option is used to specify the transaction number as a decimal value.</p>
+<p><code>-x 选项用于以十进制数值的形式指定事务编号。</code></p>
+<p> <strong>•</strong> Options can be combined to produce more specific output. For example, you could combine the <strong>-u</strong> and <strong>-t</strong> options to print all of the transaction records for changes made by the specified user to the specified tblspace.</p>
+<p><code>选项可以组合使用，以生成更具体的输出结果。例如，你可以将 -u 和 -t 选项组合起来，打印出指定用户对指定表空间所做更改的所有事务记录。</code></p>
+<p><strong>Sample onlog Output</strong></p>
+<p><img src="https://gcore.jsdelivr.net/gh/frh16/imghost/img/202507091946669.png" alt="image-20250709194639541"></p>
+<p><strong>Notes:</strong></p>
+<p>Here is an example of <strong>onlog</strong> output.</p>
+<p><strong>Log Record Header</strong></p>
+<table>
+<thead>
+<tr>
+<th><strong>Header</strong></th>
+<th><strong>Contents</strong></th>
+<th><strong>Format</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>addr</td>
+<td>Log record address</td>
+<td>hexadecimal</td>
+</tr>
+<tr>
+<td>len</td>
+<td>Record length in bytes</td>
+<td>decimal</td>
+</tr>
+<tr>
+<td>type</td>
+<td>Record type name</td>
+<td>char string</td>
+</tr>
+<tr>
+<td>xid</td>
+<td>Transaction number</td>
+<td>decimal</td>
+</tr>
+<tr>
+<td>id</td>
+<td>logical log number</td>
+<td>decimal</td>
+</tr>
+<tr>
+<td>link</td>
+<td>Address of previous record in transaction</td>
+<td>hexadecimal</td>
+</tr>
+</tbody></table>
+<p>This data is printed for every log record. Most records have additional data that is printed. See the appendix for a list of all possible log records, along with an explanation of the additional data printed for each one.</p>
+<p><code>每条日志记录都会打印出这些数据。大多数记录还包含额外打印的数据。有关所有可能的日志记录列表，以及针对每条记录所打印额外数据的解释，请参见附录。</code></p>
+<p><strong>Notes:</strong></p>
+<p>The <strong>onlog</strong> utility displays the header of each logical log record, as well as other information that depends on the type of record. If <strong>-l</strong> is specified, the entire logical log record is also displayed in both character string and hexadecimal format. The above chart outlines the content and format of the columns in the logical log header. These columns are displayed for every type of entry.</p>
+<p><code>onlog 工具会显示每条逻辑日志记录的头部信息，以及其他取决于记录类型的信息。如果指定了 -l 选项，则整个逻辑日志记录还会以字符字符串和十六进制格式同时显示。上图概述了逻辑日志头部中各列的内容和格式。这些列会针对每种类型的条目进行显示。</code></p>
+<p><strong>Information</strong></p>
+<p>For a complete list of all logical log record types and each of the subentry fields for that type that are in the logical log record, refer to the <strong>Interpreting Logical Log Records</strong> chapter in the <em>IBM Informix Dynamic Server Administrator’s Reference</em>.</p>
+<p><code>有关逻辑日志记录中所有逻辑日志记录类型及其各类子条目字段的完整列表，请参阅《IBM Informix Dynamic Server 管理员参考指南》中的“解读逻辑日志记录”一章。</code></p>
+<p><strong>Checkpoint Record Subentries</strong></p>
+<table>
+<thead>
+<tr>
+<th><strong>Contents</strong></th>
+<th><strong>Format</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Log begin</td>
+<td>decimal</td>
+</tr>
+<tr>
+<td>Transaction ID</td>
+<td>decimal</td>
+</tr>
+<tr>
+<td>Unique log number</td>
+<td>decimal</td>
+</tr>
+<tr>
+<td>Log position</td>
+<td>hexadecimal</td>
+</tr>
+<tr>
+<td>User ID</td>
+<td>char string</td>
+</tr>
+</tbody></table>
+<p>The above information is repeated for each transaction that was active at the time of the checkpoint.</p>
+<p><code>上述信息会针对检查点发生时处于活动状态的每一笔事务重复显示。</code></p>
+<p><strong>Notes:</strong></p>
+<p>If there are active transactions at the time of a checkpoint, checkpoint records have subentries that describe each of the active transactions using the columns listed.</p>
+<p><code>如果在执行检查点时存在活动事务，则检查点记录会包含子条目，这些子条目会使用所列出的各列信息来描述每一项活动事务。</code></p>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://frh16.github.io/2025/07/05/IX9111/12/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2025/06/21/IX9111/10/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">IX9111 - Unit 10.Shared Memory Architecture</div>
+      </a>
+    
+  </nav>
+
+  
+   
+    
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2023-2025
+        <i class="ri-heart-fill heart_icon"></i> fengrh
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    
+
+  </div>
+</body>
+
+</html>
